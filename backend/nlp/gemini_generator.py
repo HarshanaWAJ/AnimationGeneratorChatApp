@@ -45,7 +45,7 @@ def generate_dynamic_keyframes(prompt: str) -> list[dict]:
     genai.configure(api_key=api_key)
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+        model = genai.GenerativeModel('gemini-flash-latest', system_instruction=SYSTEM_PROMPT)
         response = model.generate_content(f"Generate keyframes for action: '{prompt}'")
         
         text = response.text.replace("```json", "").replace("```", "").strip()
