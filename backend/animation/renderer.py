@@ -171,7 +171,7 @@ def _draw_face(ax, head_pos: np.ndarray, action: str, frame: int):
         # Heart eyes
         ax.text(x+ex_l, y+ey, "♥", color="red", fontsize=10, ha="center", va="center", zorder=15)
         ax.text(x+ex_r, y+ey, "♥", color="red", fontsize=10, ha="center", va="center", zorder=15)
-        ax.plot([x+mx_l, x+mx_r], [y+my], color="black", lw=1.0, zorder=15)
+        ax.plot([x+mx_l, x+mx_r], [y+my, y+my], color="black", lw=1.0, zorder=15)
         
     else:
         # Default
