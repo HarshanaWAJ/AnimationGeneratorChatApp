@@ -1,0 +1,234 @@
+diff --git a/node_modules/react-native-gifted-chat/src/Actions.tsx b/node_modules/react-native-gifted-chat/src/Actions.tsx
+index 26c55a6..535f4c9 100644
+--- a/node_modules/react-native-gifted-chat/src/Actions.tsx
++++ b/node_modules/react-native-gifted-chat/src/Actions.tsx
+@@ -6,7 +6,7 @@ import {
+   ViewStyle,
+   TextStyle,
+ } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { TouchableOpacity } from './components/TouchableOpacity'
+ 
+diff --git a/node_modules/react-native-gifted-chat/src/Bubble/index.tsx b/node_modules/react-native-gifted-chat/src/Bubble/index.tsx
+index e440951..8b17818 100644
+--- a/node_modules/react-native-gifted-chat/src/Bubble/index.tsx
++++ b/node_modules/react-native-gifted-chat/src/Bubble/index.tsx
+@@ -4,7 +4,7 @@ import {
+   Pressable,
+ } from 'react-native'
+ 
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ 
+ import { MessageReply } from '../components/MessageReply'
+ import { useChatContext } from '../GiftedChatContext'
+diff --git a/node_modules/react-native-gifted-chat/src/Composer.tsx b/node_modules/react-native-gifted-chat/src/Composer.tsx
+index 57ba13a..ed59b0b 100644
+--- a/node_modules/react-native-gifted-chat/src/Composer.tsx
++++ b/node_modules/react-native-gifted-chat/src/Composer.tsx
+@@ -7,7 +7,7 @@ import {
+   TextInputProps,
+   View,
+ } from 'react-native'
+-import { TextInput } from 'react-native-gesture-handler'
++import { TextInput } from 'react-native';
+ import { Color } from './Color'
+ import { useColorScheme } from './hooks/useColorScheme'
+ import stylesCommon, { getColorSchemeStyle } from './styles'
+diff --git a/node_modules/react-native-gifted-chat/src/Day/index.tsx b/node_modules/react-native-gifted-chat/src/Day/index.tsx
+index 394c585..a6e8fe5 100644
+--- a/node_modules/react-native-gifted-chat/src/Day/index.tsx
++++ b/node_modules/react-native-gifted-chat/src/Day/index.tsx
+@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
+ import calendar from 'dayjs/plugin/calendar'
+ import relativeTime from 'dayjs/plugin/relativeTime'
+ 
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { DATE_FORMAT } from '../Constant'
+ 
+ import { useChatContext } from '../GiftedChatContext'
+diff --git a/node_modules/react-native-gifted-chat/src/GiftedAvatar.tsx b/node_modules/react-native-gifted-chat/src/GiftedAvatar.tsx
+index a478fd4..96a5683 100644
+--- a/node_modules/react-native-gifted-chat/src/GiftedAvatar.tsx
++++ b/node_modules/react-native-gifted-chat/src/GiftedAvatar.tsx
+@@ -7,7 +7,7 @@ import {
+   ImageStyle,
+   TextStyle,
+ } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { TouchableOpacity } from './components/TouchableOpacity'
+ import { User } from './Models'
+diff --git a/node_modules/react-native-gifted-chat/src/GiftedChat/index.tsx b/node_modules/react-native-gifted-chat/src/GiftedChat/index.tsx
+index 2858b6c..bc7c6f0 100644
+--- a/node_modules/react-native-gifted-chat/src/GiftedChat/index.tsx
++++ b/node_modules/react-native-gifted-chat/src/GiftedChat/index.tsx
+@@ -18,7 +18,8 @@ import {
+ } from '@expo/react-native-action-sheet'
+ import dayjs from 'dayjs'
+ import localizedFormat from 'dayjs/plugin/localizedFormat'
+-import { GestureHandlerRootView, TextInput } from 'react-native-gesture-handler'
++import { TextInput } from 'react-native';
++import { GestureHandlerRootView } from 'react-native-gesture-handler'
+ import { KeyboardAvoidingView, KeyboardProvider } from 'react-native-keyboard-controller'
+ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
+ import { TEST_ID } from '../Constant'
+diff --git a/node_modules/react-native-gifted-chat/src/LoadEarlierMessages.tsx b/node_modules/react-native-gifted-chat/src/LoadEarlierMessages.tsx
+index 7fa68e1..d075aaf 100644
+--- a/node_modules/react-native-gifted-chat/src/LoadEarlierMessages.tsx
++++ b/node_modules/react-native-gifted-chat/src/LoadEarlierMessages.tsx
+@@ -7,7 +7,7 @@ import {
+   ViewStyle,
+   TextStyle,
+ } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { TouchableOpacity } from './components/TouchableOpacity'
+ import stylesCommon from './styles'
+diff --git a/node_modules/react-native-gifted-chat/src/MessageAudio.tsx b/node_modules/react-native-gifted-chat/src/MessageAudio.tsx
+index 8ca8f9f..f1b602e 100644
+--- a/node_modules/react-native-gifted-chat/src/MessageAudio.tsx
++++ b/node_modules/react-native-gifted-chat/src/MessageAudio.tsx
+@@ -1,6 +1,6 @@
+ import React, { useMemo } from 'react'
+ import { View, StyleSheet } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ 
+ const styles = StyleSheet.create({
+diff --git a/node_modules/react-native-gifted-chat/src/MessageImage.tsx b/node_modules/react-native-gifted-chat/src/MessageImage.tsx
+index 276d126..e345892 100644
+--- a/node_modules/react-native-gifted-chat/src/MessageImage.tsx
++++ b/node_modules/react-native-gifted-chat/src/MessageImage.tsx
+@@ -12,7 +12,8 @@ import {
+   useWindowDimensions,
+   StatusBar,
+ } from 'react-native'
+-import { BaseButton, GestureHandlerRootView, Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
++import { BaseButton, GestureHandlerRootView } from 'react-native-gesture-handler'
+ import { OverKeyboardView } from 'react-native-keyboard-controller'
+ import Animated, {
+   useAnimatedStyle,
+diff --git a/node_modules/react-native-gifted-chat/src/MessageReply.tsx b/node_modules/react-native-gifted-chat/src/MessageReply.tsx
+index 9f7fffe..94234e3 100644
+--- a/node_modules/react-native-gifted-chat/src/MessageReply.tsx
++++ b/node_modules/react-native-gifted-chat/src/MessageReply.tsx
+@@ -10,7 +10,7 @@ import {
+   ImageStyle,
+ } from 'react-native'
+ 
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { LeftRightStyle, IMessage, ReplyMessage } from './Models'
+ import { getStyleWithPosition } from './styles'
+diff --git a/node_modules/react-native-gifted-chat/src/MessageText.tsx b/node_modules/react-native-gifted-chat/src/MessageText.tsx
+index 127a7bd..9560b02 100644
+--- a/node_modules/react-native-gifted-chat/src/MessageText.tsx
++++ b/node_modules/react-native-gifted-chat/src/MessageText.tsx
+@@ -7,7 +7,7 @@ import {
+   View,
+ } from 'react-native'
+ 
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { LinkParser, LinkMatcher, LinkType } from './linkParser'
+ import { LeftRightStyle, IMessage } from './Models'
+ 
+diff --git a/node_modules/react-native-gifted-chat/src/MessageVideo.tsx b/node_modules/react-native-gifted-chat/src/MessageVideo.tsx
+index 14de32b..d73b081 100644
+--- a/node_modules/react-native-gifted-chat/src/MessageVideo.tsx
++++ b/node_modules/react-native-gifted-chat/src/MessageVideo.tsx
+@@ -1,6 +1,6 @@
+ import React, { useMemo } from 'react'
+ import { View, StyleSheet } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ 
+ const styles = StyleSheet.create({
+diff --git a/node_modules/react-native-gifted-chat/src/MessagesContainer/index.tsx b/node_modules/react-native-gifted-chat/src/MessagesContainer/index.tsx
+index 0d08513..70ea935 100644
+--- a/node_modules/react-native-gifted-chat/src/MessagesContainer/index.tsx
++++ b/node_modules/react-native-gifted-chat/src/MessagesContainer/index.tsx
+@@ -5,7 +5,7 @@ import {
+   ListRenderItemInfo,
+   CellRendererProps,
+ } from 'react-native'
+-import { Pressable, Text } from 'react-native-gesture-handler'
++import { Pressable, Text } from 'react-native';
+ import Animated, { runOnJS, ScrollEvent, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+ import { LoadEarlierMessages } from '../LoadEarlierMessages'
+ import { warning } from '../logging'
+diff --git a/node_modules/react-native-gifted-chat/src/MessagesContainer/types.ts b/node_modules/react-native-gifted-chat/src/MessagesContainer/types.ts
+index b36b7c7..55383a2 100644
+--- a/node_modules/react-native-gifted-chat/src/MessagesContainer/types.ts
++++ b/node_modules/react-native-gifted-chat/src/MessagesContainer/types.ts
+@@ -4,7 +4,7 @@ import {
+   StyleProp,
+   ViewStyle,
+ } from 'react-native'
+-import { FlatList } from 'react-native-gesture-handler'
++import { FlatList } from 'react-native';
+ import Animated, { ScrollEvent } from 'react-native-reanimated'
+ 
+ import { DayProps } from '../Day'
+diff --git a/node_modules/react-native-gifted-chat/src/QuickReplies.tsx b/node_modules/react-native-gifted-chat/src/QuickReplies.tsx
+index 2956eb7..9ef160e 100644
+--- a/node_modules/react-native-gifted-chat/src/QuickReplies.tsx
++++ b/node_modules/react-native-gifted-chat/src/QuickReplies.tsx
+@@ -6,7 +6,7 @@ import {
+   ViewStyle,
+   TextStyle,
+ } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { TouchableOpacity } from './components/TouchableOpacity'
+ import { warning } from './logging'
+diff --git a/node_modules/react-native-gifted-chat/src/ReplyPreview.tsx b/node_modules/react-native-gifted-chat/src/ReplyPreview.tsx
+index 5a8c436..e0a85ba 100644
+--- a/node_modules/react-native-gifted-chat/src/ReplyPreview.tsx
++++ b/node_modules/react-native-gifted-chat/src/ReplyPreview.tsx
+@@ -1,7 +1,7 @@
+ import React, { useMemo } from 'react'
+ import { StyleSheet, View, StyleProp, ViewStyle, TextStyle, Pressable } from 'react-native'
+ 
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { useColorScheme } from './hooks/useColorScheme'
+ import { ReplyMessage } from './Models'
+diff --git a/node_modules/react-native-gifted-chat/src/Send.tsx b/node_modules/react-native-gifted-chat/src/Send.tsx
+index 12e39e9..45d820b 100644
+--- a/node_modules/react-native-gifted-chat/src/Send.tsx
++++ b/node_modules/react-native-gifted-chat/src/Send.tsx
+@@ -5,7 +5,7 @@ import {
+   ViewStyle,
+   TextStyle,
+ } from 'react-native'
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
+ 
+ import { Color } from './Color'
+diff --git a/node_modules/react-native-gifted-chat/src/Time.tsx b/node_modules/react-native-gifted-chat/src/Time.tsx
+index 23eef50..0c835ae 100644
+--- a/node_modules/react-native-gifted-chat/src/Time.tsx
++++ b/node_modules/react-native-gifted-chat/src/Time.tsx
+@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
+ import { StyleSheet, View, ViewStyle, TextStyle } from 'react-native'
+ import dayjs from 'dayjs'
+ 
+-import { Text } from 'react-native-gesture-handler'
++import { Text } from 'react-native';
+ import { Color } from './Color'
+ import { TIME_FORMAT } from './Constant'
+ import { useChatContext } from './GiftedChatContext'

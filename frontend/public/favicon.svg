@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#05060f"/>
+  <!-- Head -->
+  <circle cx="32" cy="14" r="8" stroke="#00e0ff" stroke-width="2" fill="none"/>
+  <!-- Torso -->
+  <line x1="32" y1="22" x2="32" y2="42" stroke="#00e0ff" stroke-width="2" stroke-linecap="round"/>
+  <!-- Arms -->
+  <line x1="32" y1="30" x2="18" y2="40" stroke="#9b5de5" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="30" x2="46" y2="40" stroke="#9b5de5" stroke-width="2" stroke-linecap="round"/>
+  <!-- Legs -->
+  <line x1="32" y1="42" x2="22" y2="56" stroke="#00e0ff" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="42" x2="42" y2="56" stroke="#00e0ff" stroke-width="2" stroke-linecap="round"/>
+</svg>
