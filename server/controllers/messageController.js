@@ -9,7 +9,8 @@ exports.sendMessage = async (req, res) => {
     const { receiverId, type, text: input_text } = req.body;
     const senderId = req.user.id;
     let final_text = input_text;
-    let gifData = null; // Ephemeral base64 GIF
+    let gifData = null; 
+    let audioData = null;
 
     // 1. If voice, convert audio to text then DELETE
     if (type === 'voice' && req.file) {
@@ -19,6 +20,13 @@ exports.sendMessage = async (req, res) => {
       transcribeData.append('file', fs.createReadStream(audio_path));
 
       try {
+        // 1a. Capture Audio as Base64 before deleting
+        const audioBuffer = fs.readFileSync(audio_path);
+        audioData = `data:audio/wav;base64,${audioBuffer.toString('base64')}`;
+
+        const transcribeData = new FormData();
+        transcribeData.append('file', fs.createReadStream(audio_path));
+
         const transcribeRes = await axios.post(`${process.env.ANIMATION_SERVICE_URL}/api/transcribe`, transcribeData, {
           headers: {
             ...transcribeData.getHeaders()
@@ -54,6 +62,8 @@ exports.sendMessage = async (req, res) => {
       receiver: receiverId,
       type,
       text: final_text,
+      gifUrl: gifData,
+      audioUrl: audioData,
     });
     await newMessage.save();
 
@@ -66,7 +76,8 @@ exports.sendMessage = async (req, res) => {
         receiver: receiverId,
         text: final_text,
         type,
-        gifUrl: gifData, // This is the ephemeral base64 string
+        gifUrl: gifData, 
+        audioUrl: audioData,
         createdAt: newMessage.createdAt
       };
       // Emit to the receiver's room

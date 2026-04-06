@@ -21,6 +21,12 @@ const MessageSchema = new mongoose.Schema({
     type: String,
     required: true, // Original text or transcribed voice
   },
+  gifUrl: {
+    type: String, // Base64 data URI of the animation
+  },
+  audioUrl: {
+    type: String, // Base64 data URI of the voice message
+  },
   isRead: {
     type: Boolean,
     default: false,

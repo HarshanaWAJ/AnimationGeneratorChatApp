@@ -76,3 +76,5 @@ Content-Type: application/json
 → Returns: image/gif binary
 → Headers: X-Action, X-Confidence, X-Frames
 ```
+
+npx expo start -c --tunnel

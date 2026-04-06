@@ -74,7 +74,7 @@ export default function ChatRoom({ route }) {
   const startRecording = async () => {
     // Fulfilling: "ask before the confirm"
     const status = await AudioModule.getPermissionsAsync();
-    
+
     if (status.status !== 'granted') {
       Alert.alert(
         'Microphone Permission',
@@ -93,7 +93,7 @@ export default function ChatRoom({ route }) {
     try {
       const { status } = await AudioModule.requestPermissionsAsync();
       if (status !== 'granted') return Alert.alert('Permission denied', 'Cannot record without microphone access.');
-      
+
       // Configure for WAV for local STT compatibility
       await audioRecorder.prepare({
         extension: '.wav',
@@ -123,7 +123,7 @@ export default function ChatRoom({ route }) {
     try {
       await audioRecorder.stop();
       const uri = audioRecorder.uri;
-      
+
       if (uri) {
         const savedMsg = await sendMessage({
           receiverId: recipientId,
@@ -157,8 +157,30 @@ export default function ChatRoom({ route }) {
       return (
         <View style={styles.gifContainer}>
           <Image source={{ uri: props.currentMessage.image }} style={styles.gif} />
-          <Text style={styles.gifLabel}>✦ Antigravity Animation</Text>
+          <Text style={styles.gifLabel}>Generated Animation</Text>
         </View>
+      );
+    }
+    return null;
+  };
+
+  const renderMessageAudio = (props) => {
+    if (props.currentMessage.audio) {
+      return (
+        <TouchableOpacity 
+          style={styles.audioBubble}
+          onPress={async () => {
+             // Play the base64 audio using expo-audio or standard method
+             try {
+               const { sound } = await AudioModule.createAudioPlayer(props.currentMessage.audio);
+               await sound.playAsync();
+             } catch (err) {
+               console.error('Audio playback failed', err);
+             }
+          }}
+        >
+          <Text style={styles.audioIcon}>▶️ Voice Message</Text>
+        </TouchableOpacity>
       );
     }
     return null;
@@ -173,12 +195,13 @@ export default function ChatRoom({ route }) {
       <GiftedChat
         messages={messages}
         onSend={messages => onSend(messages)}
-        user={{ 
+        user={{
           _id: user?._id || 'temp',
           name: user?.username || 'Me'
         }}
         renderBubble={renderBubble}
         renderMessageImage={renderMessageImage}
+        renderMessageAudio={renderMessageAudio}
         placeholder="Type a message or hold to record..."
         listViewProps={{
           style: {
@@ -188,7 +211,7 @@ export default function ChatRoom({ route }) {
         }}
       />
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.micButton, audioRecorder.isRecording && styles.micButtonActive]}
         onLongPress={startRecording}
         onPressOut={stopRecording}
@@ -219,5 +242,14 @@ const styles = StyleSheet.create({
   micIcon: { fontSize: 24, color: '#fff' },
   gifContainer: { padding: 5, borderRadius: 10 },
   gif: { width: 200, height: 200, borderRadius: 10 },
-  gifLabel: { color: '#00e0ff', fontSize: 10, textAlign: 'center', marginTop: 4 }
+  gifLabel: { color: '#00e0ff', fontSize: 10, textAlign: 'center', marginTop: 4 },
+  audioBubble: {
+    padding: 10,
+    backgroundColor: 'rgba(0, 224, 255, 0.1)',
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 5,
+  },
+  audioIcon: { color: '#00e0ff', fontWeight: 'bold' }
 });
