@@ -24,6 +24,11 @@ import time
 import logging
 import speech_recognition as sr
 from typing import Optional
+import os
+import cv2
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +46,29 @@ recognizer = sr.Recognizer()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load SentenceTransformer Model
+MODEL_DIR = Path(__file__).parent / "model"
+DATA_DIR = Path(__file__).parent / "data" / "animations"
+
+logger.info("Loading SentenceTransformer models...")
+try:
+    model_path = MODEL_DIR / "finetuned_model"
+    if model_path.exists():
+        embedder = SentenceTransformer(str(model_path))
+    else:
+        embedder = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    npz_path = MODEL_DIR / "embeddings.npz"
+    data_npz = np.load(str(npz_path))
+    train_embeddings = data_npz['X']
+    train_labels = data_npz['labels']
+    logger.info(f"Loaded {len(train_labels)} embeddings successfully.")
+except Exception as e:
+    logger.error(f"Error loading LLM models: {e}")
+    embedder = None
+    train_embeddings = None
+    train_labels = None
 
 app = FastAPI(
     title="Antigravity Stick Figure Animator",
@@ -105,6 +133,61 @@ async def animate(req: AnimateRequest):
     user_text = req.action.strip()
     logger.info(f"[animate] Input: {user_text!r}")
 
+    # --- 1. LLM Matcher Logic ---
+    if embedder is not None and train_embeddings is not None:
+        try:
+            emb = embedder.encode([user_text])
+            similarities = cosine_similarity(emb, train_embeddings)[0]
+            best_idx = np.argmax(similarities)
+            best_score = similarities[best_idx]
+            
+            logger.info(f"[animate] LLM match score: {best_score:.2f} for label: {train_labels[best_idx]}")
+            
+            if best_score > 0.5:
+                pred_label = train_labels[best_idx]
+                mp4_path = DATA_DIR / f"{pred_label}.mp4"
+                if mp4_path.exists():
+                    logger.info(f"[animate] Using existing animation: {mp4_path.name}")
+                    t_llm = time.time()
+                    
+                    # Read MP4 with cv2
+                    cap = cv2.VideoCapture(str(mp4_path))
+                    frames = []
+                    while True:
+                        ret, frame = cap.read()
+                        if not ret:
+                            break
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        frames.append(frame_rgb)
+                    cap.release()
+                    
+                    logger.info(f"[animate] Read {len(frames)} frames from {mp4_path.name}")
+                    
+                    if frames:
+                        # Convert to GIF
+                        gif_bytes = frames_to_gif(
+                            frames,
+                            output_size=(req.output_width, req.output_height)
+                        )
+                        logger.info(f"[animate] LLM MP4->GIF export: {time.time() - t_llm:.2f}s — size: {len(gif_bytes)/1024:.1f} KB")
+                        
+                        return Response(
+                            content=gif_bytes,
+                            media_type="image/gif",
+                            headers={
+                                "X-Action": pred_label,
+                                "X-Confidence": str(best_score),
+                                "X-Source": "llm-existing",
+                            }
+                        )
+                else:
+                    logger.warning(f"[animate] File {mp4_path} not found. Falling back to backend generation.")
+            else:
+                logger.info(f"[animate] LLM score too low ({best_score:.2f} <= 0.5). Falling back to backend generation.")
+        except Exception as e:
+            logger.error(f"[animate] LLM matcher error: {e}. Falling back to backend generation.")
+
+    # --- 2. Fallback: Procedural Backend Generation ---
     # 1. Classify action
     action, confidence = classify_action(user_text)
     display_text = extract_display_text(user_text)

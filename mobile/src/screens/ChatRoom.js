@@ -1,255 +1,321 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Image, ActivityIndicator, Alert } from 'react-native';
-import { GiftedChat, Bubble, Send } from 'react-native-gifted-chat';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Animated,
+  Dimensions,
+  StatusBar,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { GiftedChat, Bubble, Send, InputToolbar, Composer } from 'react-native-gifted-chat';
 import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import io from 'socket.io-client';
 import { sendMessage, getMessages } from '../services/chat';
 import { getProfile } from '../services/auth';
 import config from '../utils/config';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IS_WEB = Platform.OS === 'web';
+
+// ─── COLORS ─────────────────────────
+const COLORS = {
+  bg: '#070910',
+  surface: '#0d1117',
+  glass: 'rgba(255,255,255,0.04)',
+  glassStroke: 'rgba(255,255,255,0.07)',
+  cyan: '#00e5ff',
+  cyanDim: 'rgba(0,229,255,0.15)',
+  magenta: '#f72585',
+  textPrimary: '#e8f4f8',
+  textMuted: '#5a7080',
+  bubbleRight: '#0a2233',
+  bubbleLeft: 'rgba(255,255,255,0.05)',
+  inputBg: '#0c1520',
+};
+
+// ─── Pulse Animation ─────────────────
+function PulseRing({ active }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (active) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(scale, { toValue: 1.9, duration: 800, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
+          ]),
+        ])
+      ).start();
+    }
+  }, [active]);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        borderWidth: 2,
+        borderColor: COLORS.magenta,
+        opacity,
+        transform: [{ scale }],
+      }}
+    />
+  );
+}
+
+// ─── MAIN COMPONENT ─────────────────
 export default function ChatRoom({ route }) {
-  const { recipientId, recipientName } = route.params || { recipientId: 'some_id', recipientName: 'Friend' };
+  const { recipientId, recipientName } = route.params || {};
+
   const [messages, setMessages] = useState([]);
   const [user, setUser] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // --- Audio Recording Hook (Modern Expo SDK 54) ---
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const micScale = useRef(new Animated.Value(1)).current;
+  const insets = useSafeAreaInsets?.() ?? { top: 0, bottom: 0 };
 
+  // ── INIT ─────────────────────────
   useEffect(() => {
-    // 1. Load User Profile
     const init = async () => {
       const profile = await getProfile();
       setUser(profile);
-      loadMessages();
+      await loadMessages();
+      setIsLoading(false);
     };
     init();
+  }, []);
 
-    // 2. Setup Socket
-    const newSocket = io(config.SOCKET_URL);
-    setSocket(newSocket);
-    newSocket.emit('join_room', recipientId);
+  // ── SOCKET FIX (WEB SAFE) ─────────
+  useEffect(() => {
+    let newSocket;
 
-    newSocket.on('receive_message', (data) => {
-      setMessages(previousMessages => GiftedChat.append(previousMessages, formatMessage(data)));
-    });
+    const initSocket = () => {
+      newSocket = io(config.SOCKET_URL, {
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+      });
 
-    return () => newSocket.disconnect();
+      setSocket(newSocket);
+
+      newSocket.on('connect', () => {
+        newSocket.emit('join_room', recipientId);
+      });
+
+      newSocket.on('receive_message', (data) => {
+        setMessages(prev =>
+          GiftedChat.append(prev, formatMessage(data))
+        );
+      });
+    };
+
+    initSocket();
+
+    return () => {
+      if (newSocket) {
+        newSocket.removeAllListeners();
+        newSocket.disconnect();
+      }
+    };
   }, [recipientId]);
 
+  // ── WEB VISIBILITY FIX ────────────
+  useEffect(() => {
+    if (!IS_WEB || !socket) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        socket.connect();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [socket]);
+
   const loadMessages = async () => {
-    try {
-      const data = await getMessages(recipientId);
-      setMessages(data.map(formatMessage).reverse());
-    } catch (err) {
-      console.error('Failed to load messages:', err);
-    }
+    const data = await getMessages(recipientId);
+    setMessages(data.map(formatMessage).reverse());
   };
 
-  const formatMessage = (msg) => ({
+  const formatMessage = msg => ({
     _id: msg._id,
     text: msg.text,
     createdAt: new Date(msg.createdAt),
-    user: { _id: msg.sender, name: 'User' },
+    user: { _id: msg.sender },
     image: msg.gifUrl,
     audio: msg.audioUrl,
   });
 
-  const onSend = useCallback(async (newMessages = []) => {
-    const msg = newMessages[0];
-    if (!user) return;
-    try {
-      const savedMsg = await sendMessage({
-        receiverId: recipientId,
-        type: 'text',
-        text: msg.text
-      });
-      setMessages(previousMessages => GiftedChat.append(previousMessages, formatMessage(savedMsg)));
-    } catch (err) {
-      console.error('Send failed:', err);
-    }
-  }, [recipientId, user]);
+  const onSend = useCallback(async (msgs = []) => {
+    const msg = msgs[0];
+    const saved = await sendMessage({
+      receiverId: recipientId,
+      type: 'text',
+      text: msg.text,
+    });
 
-  // --- Voice Recording Logic ---
-  const startRecording = async () => {
-    // Fulfilling: "ask before the confirm"
-    const status = await AudioModule.getPermissionsAsync();
+    setMessages(prev => GiftedChat.append(prev, formatMessage(saved)));
+  }, [recipientId]);
 
-    if (status.status !== 'granted') {
-      Alert.alert(
-        'Microphone Permission',
-        'Antigravity Chat needs access to your microphone to send voice messages. Transcripts will be used to generate your animations.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Enable', onPress: () => requestAndStart() }
-        ]
-      );
-      return;
-    }
-    requestAndStart();
+  // ── MIC ──────────────────────────
+  const animateMic = (active) => {
+    Animated.spring(micScale, {
+      toValue: active ? 1.2 : 1,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const requestAndStart = async () => {
-    try {
-      const { status } = await AudioModule.requestPermissionsAsync();
-      if (status !== 'granted') return Alert.alert('Permission denied', 'Cannot record without microphone access.');
-
-      // Configure for WAV for local STT compatibility
-      await audioRecorder.prepare({
-        extension: '.wav',
-        sampleRate: 44100,
-        numberOfChannels: 1,
-        bitRate: 128000,
-        android: {
-          extension: '.wav',
-          outputFormat: 'wav', // Use a standard WAV format
-          audioEncoder: 'aac' // Or 'default'
-        },
-        ios: {
-          extension: '.wav',
-          outputFormat: 'linear-pcm',
-          audioQuality: 'high'
-        }
-      });
-
-      await audioRecorder.record();
-    } catch (err) {
-      console.error('Failed to start recording', err);
-    }
+  const startRecording = async () => {
+    await audioRecorder.prepare();
+    await audioRecorder.record();
+    animateMic(true);
   };
 
   const stopRecording = async () => {
     if (!audioRecorder.isRecording) return;
-    try {
-      await audioRecorder.stop();
-      const uri = audioRecorder.uri;
-
-      if (uri) {
-        const savedMsg = await sendMessage({
-          receiverId: recipientId,
-          type: 'voice',
-          audioUri: uri
-        });
-        setMessages(previousMessages => GiftedChat.append(previousMessages, formatMessage(savedMsg)));
-      }
-    } catch (err) {
-      console.error('Voice send failed:', err);
-    }
+    animateMic(false);
+    await audioRecorder.stop();
   };
 
-  // --- Custom UI ---
-  const renderBubble = (props) => (
-    <Bubble
-      {...props}
-      wrapperStyle={{
-        right: { backgroundColor: '#00e0ff' },
-        left: { backgroundColor: 'rgba(255,255,255,0.1)' }
-      }}
-      textStyle={{
-        right: { color: '#fff' },
-        left: { color: '#fff' }
-      }}
-    />
-  );
-
-  const renderMessageImage = (props) => {
-    if (props.currentMessage.image) {
-      return (
-        <View style={styles.gifContainer}>
-          <Image source={{ uri: props.currentMessage.image }} style={styles.gif} />
-          <Text style={styles.gifLabel}>Generated Animation</Text>
-        </View>
-      );
-    }
-    return null;
-  };
-
-  const renderMessageAudio = (props) => {
-    if (props.currentMessage.audio) {
-      return (
-        <TouchableOpacity 
-          style={styles.audioBubble}
-          onPress={async () => {
-             // Play the base64 audio using expo-audio or standard method
-             try {
-               const { sound } = await AudioModule.createAudioPlayer(props.currentMessage.audio);
-               await sound.playAsync();
-             } catch (err) {
-               console.error('Audio playback failed', err);
-             }
-          }}
-        >
-          <Text style={styles.audioIcon}>▶️ Voice Message</Text>
-        </TouchableOpacity>
-      );
-    }
-    return null;
-  };
-
+  // ── UI ───────────────────────────
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>{recipientName}</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={{ flex: 1, minHeight: 0 }}>
+        <StatusBar barStyle="light-content" />
+
+        {isLoading ? (
+          <ActivityIndicator color={COLORS.cyan} />
+        ) : (
+          <GiftedChat
+            messages={messages}
+            onSend={msgs => onSend(msgs)}
+            user={{ _id: user?._id || 'temp' }}
+
+            inverted={!IS_WEB}
+            isKeyboardInternallyHandled={!IS_WEB}
+
+            listViewProps={{
+              keyboardShouldPersistTaps: 'handled',
+            }}
+
+            messagesContainerStyle={{
+              backgroundColor: 'transparent',
+            }}
+
+            renderBubble={(props) => (
+              <Bubble
+                {...props}
+                wrapperStyle={{
+                  right: { backgroundColor: COLORS.bubbleRight },
+                  left: { backgroundColor: COLORS.bubbleLeft },
+                }}
+                textStyle={{
+                  right: { color: COLORS.textPrimary },
+                  left: { color: COLORS.textPrimary },
+                }}
+              />
+            )}
+
+            renderInputToolbar={(props) => (
+              <InputToolbar
+                {...props}
+                containerStyle={{
+                  backgroundColor: COLORS.inputBg,
+                }}
+              />
+            )}
+
+            renderComposer={(props) => (
+              <Composer
+                {...props}
+                textInputStyle={{
+                  color: COLORS.textPrimary,
+                }}
+              />
+            )}
+
+            renderSend={(props) => (
+              <Send {...props}>
+                <View style={styles.sendBtn}>
+                  <Text>↑</Text>
+                </View>
+              </Send>
+            )}
+
+            // ✅ MIC FIX (no overlay)
+            renderChatFooter={() => (
+              <View style={styles.micContainer}>
+                <PulseRing active={audioRecorder.isRecording} />
+
+                <Animated.View style={{ transform: [{ scale: micScale }] }}>
+                  <TouchableOpacity
+                    style={styles.micButton}
+                    onLongPress={startRecording}
+                    onPressOut={stopRecording}
+                  >
+                    <Text style={{ color: '#fff' }}>
+                      {audioRecorder.isRecording ? '■' : '●'}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+
+                <Text style={styles.micText}>
+                  {audioRecorder.isRecording ? 'Release to send' : 'Hold'}
+                </Text>
+              </View>
+            )}
+          />
+        )}
       </View>
-
-      <GiftedChat
-        messages={messages}
-        onSend={messages => onSend(messages)}
-        user={{
-          _id: user?._id || 'temp',
-          name: user?.username || 'Me'
-        }}
-        renderBubble={renderBubble}
-        renderMessageImage={renderMessageImage}
-        renderMessageAudio={renderMessageAudio}
-        placeholder="Type a message or hold to record..."
-        listViewProps={{
-          style: {
-            flex: 1,
-            overflow: 'auto',
-          },
-        }}
-      />
-
-      <TouchableOpacity
-        style={[styles.micButton, audioRecorder.isRecording && styles.micButtonActive]}
-        onLongPress={startRecording}
-        onPressOut={stopRecording}
-      >
-        <Text style={styles.micIcon}>{audioRecorder.isRecording ? '⏹' : '🎤'}</Text>
-      </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
+// ── STYLES ─────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05060f' },
-  header: { padding: 50, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center' },
-  headerText: { color: '#00e0ff', fontSize: 18, fontWeight: 'bold' },
+  sendBtn: {
+    backgroundColor: '#00e5ff',
+    padding: 10,
+    borderRadius: 20,
+    marginRight: 5,
+  },
+  micContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   micButton: {
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#00e0ff',
+    backgroundColor: '#f72585',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
   },
-  micButtonActive: { backgroundColor: '#f72585', transform: [{ scale: 1.2 }] },
-  micIcon: { fontSize: 24, color: '#fff' },
-  gifContainer: { padding: 5, borderRadius: 10 },
-  gif: { width: 200, height: 200, borderRadius: 10 },
-  gifLabel: { color: '#00e0ff', fontSize: 10, textAlign: 'center', marginTop: 4 },
-  audioBubble: {
-    padding: 10,
-    backgroundColor: 'rgba(0, 224, 255, 0.1)',
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 5,
+  micText: {
+    color: '#aaa',
+    fontSize: 10,
+    marginTop: 4,
   },
-  audioIcon: { color: '#00e0ff', fontWeight: 'bold' }
 });

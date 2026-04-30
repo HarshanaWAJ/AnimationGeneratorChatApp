@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Animation Matcher</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a, #1e1b4b);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            /* Allow scrolling if content is taller than viewport */
+            overflow-y: auto;
+        }
+
+        /* Animated Background Elements */
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            z-index: -1;
+            /* Move behind EVERYTHING to ensure input accessibility */
+            opacity: 0.6;
+            animation: move 20s infinite alternate;
+            pointer-events: none;
+            /* Ensure they don't block clicks */
+        }
+
+        .blob-1 {
+            background: #8b5cf6;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            top: -100px;
+            left: -100px;
+        }
+
+        .blob-2 {
+            background: #ec4899;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            bottom: -50px;
+            right: -50px;
+            animation-delay: -10s;
+        }
+
+        @keyframes move {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(50px, 50px) scale(1.1);
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 800px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        header {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+            outline: none;
+        }
+
+        .placeholder-text {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            position: relative;
+            z-index: 20;
+            /* Ensure form is above anything else */
+        }
+
+        input {
+            flex: 1;
+            padding: 18px 24px;
+            border-radius: 100px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--glass-border);
+            color: white;
+            font-size: 1.1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        button {
+            padding: 0 24px;
+            border-radius: 100px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-size: 1.05rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 130px;
+            gap: 8px;
+        }
+
+        button.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        button:not(.secondary):hover {
+            background: var(--primary-hover);
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        button.secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status {
+            text-align: center;
+            min-height: 24px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            transition: color 0.3s;
+        }
+
+        .error {
+            color: #f43f5e;
+        }
+
+        .success {
+            color: #10b981;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="container">
+        <header>
+            <h1>AI Animation Matcher</h1>
+            <p class="subtitle">Type a prompt to instantly trigger the corresponding animation.</p>
+        </header>
+
+        <div class="video-container">
+            <div class="placeholder-text" id="placeholder">Waiting for your prompt...</div>
+            <video id="player" controls autoplay playsinline loop></video>
+        </div>
+
+        <form id="promptForm" class="input-group">
+            <input type="text" id="promptInput" placeholder="e.g., I'm feeling happy, call the doctor..."
+                autocomplete="off" required>
+            <button type="button" id="btnFind" class="secondary">
+                <span class="btnText">Find Existing</span>
+                <div class="loading-spinner spinner"></div>
+            </button>
+            <button type="button" id="btnGenerate">
+                <span class="btnText">Generate New</span>
+                <div class="loading-spinner spinner"></div>
+            </button>
+        </form>
+
+        <div class="status" id="statusMessage">AI Ready.</div>
+    </div>
+
+    <script>
+        const form = document.getElementById('promptForm');
+        const input = document.getElementById('promptInput');
+        const player = document.getElementById('player');
+        const placeholder = document.getElementById('placeholder');
+        const statusMsg = document.getElementById('statusMessage');
+        const btnFind = document.getElementById('btnFind');
+        const btnGenerate = document.getElementById('btnGenerate');
+
+        // Focus input on load
+        window.addEventListener('load', () => {
+            input.focus();
+        });
+
+        // Let enter key trigger a default find
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleAction('/api/find', btnFind);
+        });
+
+        btnFind.addEventListener('click', () => handleAction('/api/find', btnFind));
+        btnGenerate.addEventListener('click', () => handleAction('/api/generate', btnGenerate));
+
+        async function handleAction(endpoint, clickedBtn) {
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            console.log(`Sending prompt to ${endpoint}:`, prompt);
+
+            // UI Loading state
+            const btnText = clickedBtn.querySelector('.btnText');
+            const spinner = clickedBtn.querySelector('.spinner');
+            const originalText = btnText.textContent;
+
+            btnFind.disabled = true;
+            btnGenerate.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+
+            statusMsg.textContent = endpoint === '/api/generate' ? 'Generating custom stick-figure video...' : 'Searching canonical animations...';
+            statusMsg.className = 'status';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to process request');
+                }
+
+                const data = await response.json();
+                const videoFile = data.animation_file;
+
+                console.log('Received response:', videoFile);
+
+                // Success
+                statusMsg.textContent = endpoint === '/api/generate' ? `Generated custom video: ${videoFile.replace('.mp4', '')}` : `Matched canonical animation: ${videoFile.replace('.mp4', '')}`;
+                statusMsg.className = 'status success';
+
+                // Play video
+                let videoUrl = "";
+                if (endpoint === '/api/generate') {
+                    videoUrl = `/api/generated_animations/${encodeURIComponent(videoFile)}?t=${new Date().getTime()}`; // cache bust for generated
+                } else {
+                    videoUrl = `/api/animations/${encodeURIComponent(videoFile)}`;
+                }
+
+                console.log('Loading video from:', videoUrl);
+
+                player.src = videoUrl;
+                player.style.display = 'block';
+                placeholder.style.display = 'none';
+
+                // Attempt to play (some browsers block autoplay)
+                player.play().catch(err => {
+                    console.warn('Autoplay prevented:', err);
+                });
+
+            } catch (err) {
+                console.error('Error detail:', err);
+                statusMsg.textContent = `Error: ${err.message}`;
+                statusMsg.className = 'status error';
+            } finally {
+                // Restore button
+                btnFind.disabled = false;
+                btnGenerate.disabled = false;
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+                btnText.textContent = originalText;
+            }
+        }
+
+        // Add handler for video load errors
+        player.addEventListener('error', (e) => {
+            console.error('Video error:', e);
+            statusMsg.textContent = 'Error: Failed to load animation file.';
+            statusMsg.className = 'status error';
+        });
+    </script>
+</body>
+
+</html>
