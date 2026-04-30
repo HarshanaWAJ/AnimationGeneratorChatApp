@@ -11,9 +11,16 @@ Supported states (18 total):
             celebrate, cry, laugh, think, panic, meditate
   FALLBACK: idle
 """
+import os
 import re
 import spacy
+import numpy as np
 from typing import Tuple
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load spaCy model once at module level
 try:
@@ -22,6 +29,33 @@ except OSError:
     import subprocess, sys
     subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
     nlp = spacy.load("en_core_web_sm")
+
+# Load LLM models once at module level
+llm_embedder = None
+train_embeddings = None
+train_labels = None
+LLM_READY = False
+
+try:
+    _MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
+    _finetuned_path = os.path.join(_MODEL_DIR, "finetuned_model")
+    if os.path.exists(_finetuned_path):
+        llm_embedder = SentenceTransformer(_finetuned_path)
+    else:
+        llm_embedder = SentenceTransformer('all-MiniLM-L6-v2')
+        
+    _emb_path = os.path.join(_MODEL_DIR, "embeddings.npz")
+    if os.path.exists(_emb_path):
+        _data = np.load(_emb_path)
+        train_embeddings = _data['X']
+        train_labels = _data['labels']
+        LLM_READY = True
+        logger.info("Successfully loaded LLM models for classification.")
+    else:
+        logger.warning(f"Could not find embeddings.npz at {_emb_path}. LLM classification disabled.")
+except Exception as e:
+    logger.error(f"Error loading LLM models: {e}. Fallback to rule-based classification.")
+    LLM_READY = False
 
 # ─── Keyword Map (action + emotion states) ──────────────────────────────────
 # Order matters: more-specific entries take priority over general ones
@@ -330,6 +364,23 @@ def classify_action(text: str) -> Tuple[str, float]:
     # 1. Block nonsense / harmful content → idle
     if NONSENSE_RE.search(text_clean):
         return "idle", 0.1
+
+    # Attempt LLM classification first
+    if LLM_READY:
+        try:
+            emb = llm_embedder.encode([text_clean])
+            similarities = cosine_similarity(emb, train_embeddings)[0]
+            best_idx = int(np.argmax(similarities))
+            pred_label = str(train_labels[best_idx])
+            confidence = float(similarities[best_idx])
+            
+            if confidence > 0.65:
+                logger.info(f"LLM Match: {pred_label} (conf: {confidence:.2f})")
+                return pred_label, confidence
+            else:
+                logger.info(f"LLM match low confidence ({confidence:.2f} < 0.65). Falling back to rules.")
+        except Exception as e:
+            logger.error(f"LLM classification error: {e}. Falling back to rules.")
 
     # 2. Emoji hint (instant, highest confidence)
     emoji_state = _emoji_hint(text_clean)
