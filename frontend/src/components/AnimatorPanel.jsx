@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import StickLoader from './StickLoader'
 import ActionBadge from './ActionBadge'
+import { encodeWAV } from '../utils/audioUtils'
 
 const ACTION_GROUPS = [
   {
@@ -55,43 +56,105 @@ export default function AnimatorPanel() {
 
   // Voice States
   const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [isSpeaking, setIsSpeaking]   = useState(false)
-  const [recognition, setRecognition] = useState(null)
+  
+  const audioContextRef = useRef(null)
+  const processorRef = useRef(null)
+  const streamRef = useRef(null)
+  const audioChunksRef = useRef([])
 
   const inputRef = useRef(null)
 
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (SpeechRecognition) {
-      const recognizer = new SpeechRecognition()
-      recognizer.continuous = false
-      recognizer.interimResults = false
-      recognizer.lang = 'en-US'
+  // ── Voice Recording Logic ────────────────────────────────────────────────
+  const stopRecording = useCallback(async () => {
+    if (!isRecording) return
+    setIsRecording(false)
 
-      recognizer.onstart = () => setIsRecording(true)
-      recognizer.onend = () => setIsRecording(false)
-      recognizer.onerror = (event) => {
-        console.error('Speech recognition error:', event.error)
-        setIsRecording(false)
-      }
-      recognizer.onresult = (event) => {
-        const transcript = event.results[0][0].transcript
-        setInputText(transcript)
-      }
-      setRecognition(recognizer)
+    if (processorRef.current) {
+      processorRef.current.disconnect()
+      processorRef.current = null
     }
-  }, [])
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+
+    const samples = new Float32Array(audioChunksRef.current.reduce((acc, chunk) => acc + chunk.length, 0))
+    let offset = 0
+    for (const chunk of audioChunksRef.current) {
+      samples.set(chunk, offset)
+      offset += chunk.length
+    }
+    audioChunksRef.current = []
+
+    const wavBlob = encodeWAV(samples, audioContextRef.current.sampleRate)
+    handleVoiceUpload(wavBlob)
+  }, [isRecording])
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      audioContextRef.current = audioContext
+      
+      const source = audioContext.createMediaStreamSource(stream)
+      const processor = audioContext.createScriptProcessor(4096, 1, 1)
+      
+      processorRef.current = processor
+      audioChunksRef.current = []
+
+      processor.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0)
+        audioChunksRef.current.push(new Float32Array(inputData))
+      }
+
+      source.connect(processor)
+      processor.connect(audioContext.destination)
+      
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Error accessing microphone:', err)
+      alert('Could not access microphone. Please check permissions.')
+    }
+  }
 
   const handleVoiceInput = () => {
-    if (!recognition) {
-      alert('Speech recognition is not supported in this browser.')
-      return
-    }
     if (isRecording) {
-      recognition.stop()
+      stopRecording()
     } else {
-      recognition.start()
+      startRecording()
+    }
+  }
+
+  const handleVoiceUpload = async (blob) => {
+    setIsTranscribing(true)
+    setError(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', blob, 'voice.wav')
+
+      const res = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error('Transcription failed')
+
+      const data = await res.json()
+      if (data.text) {
+        setInputText(data.text)
+        handleGenerate(data.text)
+      } else if (data.error) {
+        setError(data.error)
+      }
+    } catch (err) {
+      setError('Failed to transcribe voice: ' + err.message)
+    } finally {
+      setIsTranscribing(false)
     }
   }
 
@@ -189,16 +252,21 @@ export default function AnimatorPanel() {
                 Listening...
               </div>
             )}
+            {isTranscribing && (
+              <div className="recording-hint" style={{ color: 'var(--magenta)' }}>
+                Processing voice...
+              </div>
+            )}
           </div>
 
           <div className="input-row">
             <button 
-              className={`btn-mic ${isRecording ? 'is-recording' : ''}`}
+              className={`btn-mic ${isRecording ? 'is-recording' : ''} ${isTranscribing ? 'is-loading' : ''}`}
               onClick={handleVoiceInput}
               title="Voice Input"
-              disabled={loading}
+              disabled={loading || isTranscribing}
             >
-              {isRecording ? '⏹' : '🎤'}
+              {isRecording ? '⏹' : isTranscribing ? '⌛' : '🎤'}
             </button>
             <input
               ref={inputRef}

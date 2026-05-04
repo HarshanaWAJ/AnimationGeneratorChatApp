@@ -88,12 +88,30 @@ export default function ChatRoom({ route, navigation }) {
 
   const onSend = useCallback(async (msgs = []) => {
     const msg = msgs[0];
-    const saved = await sendMessage({ receiverId: recipientId, type: 'text', text: msg.text });
-    setMessages((prev) => {
-      const newMsg = formatMessage(saved);
-      if (prev.some((m) => m._id === newMsg._id)) return prev;
-      return GiftedChat.append(prev, newMsg);
-    });
+    try {
+      let saved;
+      if (msg.audio) {
+        saved = await sendMessage({
+          receiverId: recipientId,
+          type: 'voice',
+          audioUri: msg.audio
+        });
+      } else {
+        saved = await sendMessage({
+          receiverId: recipientId,
+          type: 'text',
+          text: msg.text
+        });
+      }
+
+      setMessages((prev) => {
+        const newMsg = formatMessage(saved);
+        if (prev.some((m) => m._id === newMsg._id)) return prev;
+        return GiftedChat.append(prev, newMsg);
+      });
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
   }, [recipientId]);
 
   const animateMic = (active) => {
@@ -104,7 +122,18 @@ export default function ChatRoom({ route, navigation }) {
   };
   const stopRecording = async () => {
     if (!audioRecorder.isRecording) return;
-    animateMic(false); await audioRecorder.stop();
+    animateMic(false);
+    await audioRecorder.stop();
+    
+    if (audioRecorder.uri) {
+      // Send the audio message
+      onSend([{
+        _id: String(Date.now()),
+        createdAt: new Date(),
+        user: { _id: user?._id || 'temp' },
+        audio: audioRecorder.uri,
+      }]);
+    }
   };
 
   return (
