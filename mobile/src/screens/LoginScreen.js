@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { login } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
+import { moderateScale } from '../utils/responsive';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -113,22 +114,22 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 40,
+    paddingHorizontal: moderateScale(28),
+    paddingVertical: moderateScale(40),
   },
   logoArea: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: moderateScale(48),
   },
   title: {
-    fontSize: 36,
+    fontSize: moderateScale(36),
     fontWeight: '800',
     color: '#00e0ff',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: moderateScale(15),
     color: '#8b9cc8',
     textAlign: 'center',
   },
@@ -137,28 +138,28 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#8b9cc8',
-    fontSize: 13,
+    fontSize: moderateScale(13),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: moderateScale(8),
     letterSpacing: 0.3,
   },
   input: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(14),
     color: '#fff',
-    fontSize: 15,
-    marginBottom: 20,
+    fontSize: moderateScale(15),
+    marginBottom: moderateScale(20),
   },
   button: {
     backgroundColor: '#00e0ff',
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: moderateScale(14),
+    paddingVertical: moderateScale(16),
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: moderateScale(8),
     shadowColor: '#00e0ff',
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -171,17 +172,17 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#05060f',
     fontWeight: '800',
-    fontSize: 16,
+    fontSize: moderateScale(16),
     letterSpacing: 0.3,
   },
   linkBtn: {
-    marginTop: 24,
+    marginTop: moderateScale(24),
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: moderateScale(8),
   },
   linkText: {
     color: '#8b9cc8',
-    fontSize: 14,
+    fontSize: moderateScale(14),
   },
   linkHighlight: {
     color: '#00e0ff',

@@ -5,12 +5,13 @@ import {
   StatusBar, KeyboardAvoidingView,
 } from 'react-native';
 import { GiftedChat, Bubble, Send, InputToolbar, Composer } from 'react-native-gifted-chat';
-import { useAudioRecorder, RecordingPresets } from 'expo-audio';
+import { useAudioRecorder, useAudioPlayer, RecordingPresets } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import io from 'socket.io-client';
 import { sendMessage, getMessages } from '../services/chat';
 import { getProfile } from '../services/auth';
 import config from '../utils/config';
+import { moderateScale, scale, verticalScale } from '../utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
@@ -25,6 +26,27 @@ const COLORS = {
 };
 
 const HEADER_HEIGHT = 68;
+
+const AudioMessageBubble = ({ currentMessage }) => {
+  const player = useAudioPlayer(currentMessage.audio);
+
+  if (!currentMessage.audio) return null;
+
+  return (
+    <View style={styles.audioWrapper}>
+      <TouchableOpacity
+        style={styles.audioBtn}
+        onPress={() => {
+          if (player.playing) player.pause();
+          else player.play();
+        }}
+      >
+        <Text style={styles.audioBtnText}>{player.playing ? '⏸️ Pause' : '▶️ Play'}</Text>
+      </TouchableOpacity>
+      <Text style={styles.audioText}>Voice Message</Text>
+    </View>
+  );
+};
 
 export default function ChatRoom({ route, navigation }) {
   const { recipientId, recipientName } = route.params || {};
@@ -104,7 +126,17 @@ export default function ChatRoom({ route, navigation }) {
   };
   const stopRecording = async () => {
     if (!audioRecorder.isRecording) return;
-    animateMic(false); await audioRecorder.stop();
+    animateMic(false);
+    await audioRecorder.stop();
+    const uri = audioRecorder.uri;
+    if (uri) {
+      const saved = await sendMessage({ receiverId: recipientId, type: 'audio', audioUri: uri });
+      setMessages((prev) => {
+        const newMsg = formatMessage(saved);
+        if (prev.some((m) => m._id === newMsg._id)) return prev;
+        return GiftedChat.append(prev, newMsg);
+      });
+    }
   };
 
   return (
@@ -116,7 +148,7 @@ export default function ChatRoom({ route, navigation }) {
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{recipientName || 'Chat'}</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: moderateScale(40) }} />
       </View>
 
       {/* ── FIX 1: behavior="padding" on ALL platforms ── */}
@@ -151,8 +183,8 @@ export default function ChatRoom({ route, navigation }) {
               <Bubble
                 {...props}
                 wrapperStyle={{
-                  right: { backgroundColor: COLORS.bubbleRight, padding: 2 },
-                  left: { backgroundColor: COLORS.bubbleLeft, padding: 2 },
+                  right: { backgroundColor: COLORS.bubbleRight, padding: moderateScale(2) },
+                  left: { backgroundColor: COLORS.bubbleLeft, padding: moderateScale(2) },
                 }}
                 textStyle={{
                   right: { color: COLORS.textPrimary },
@@ -173,6 +205,8 @@ export default function ChatRoom({ route, navigation }) {
                 </View>
               );
             }}
+
+            renderMessageAudio={(props) => <AudioMessageBubble {...props} />}
 
             renderActions={() => (
               <View style={styles.actionContainer}>
@@ -223,39 +257,51 @@ const styles = StyleSheet.create({
   loader: { flex: 1, alignSelf: 'center' },
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: moderateScale(16), paddingVertical: moderateScale(12),
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   backBtn: {
-    width: 40, height: 40, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: COLORS.cyanDim, borderRadius: 12,
+    width: moderateScale(40), height: moderateScale(40), justifyContent: 'center', alignItems: 'center',
+    backgroundColor: COLORS.cyanDim, borderRadius: moderateScale(12),
   },
-  backArrow: { color: COLORS.cyan, fontSize: 24, fontWeight: 'bold' },
-  headerTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
+  backArrow: { color: COLORS.cyan, fontSize: moderateScale(24), fontWeight: 'bold' },
+  headerTitle: { flex: 1, color: '#fff', fontSize: moderateScale(18), fontWeight: 'bold', textAlign: 'center' },
   inputToolbar: {
     backgroundColor: COLORS.inputBg,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
     // NOTE: paddingBottom is set dynamically via insets.bottom in renderInputToolbar
   },
-  composerInput: { color: COLORS.textPrimary },
+  composerInput: { color: COLORS.textPrimary, fontSize: moderateScale(15) },
   sendContainer: { justifyContent: 'center' },
   sendBtn: {
     backgroundColor: COLORS.cyan,
-    paddingVertical: 8, paddingHorizontal: 16,
-    borderRadius: 20, marginRight: 10, marginBottom: 5,
+    paddingVertical: moderateScale(8), paddingHorizontal: moderateScale(16),
+    borderRadius: moderateScale(20), marginRight: moderateScale(10), marginBottom: moderateScale(5),
   },
-  sendLabel: { color: '#000', fontWeight: 'bold' },
+  sendLabel: { color: '#000', fontWeight: 'bold', fontSize: moderateScale(14) },
   actionContainer: {
     justifyContent: 'center', alignItems: 'center',
-    height: 44, width: 44, marginBottom: 0,
+    height: moderateScale(44), width: moderateScale(44), marginBottom: 0,
   },
   micSmallBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: moderateScale(36), height: moderateScale(36), borderRadius: moderateScale(18),
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center', alignItems: 'center',
   },
-  micIcon: { fontSize: 16 },
-  imageWrapper: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#fff', margin: 4 },
-  messageImage: { width: 220, height: 160 },
+  micIcon: { fontSize: moderateScale(16) },
+  imageWrapper: { borderRadius: moderateScale(12), overflow: 'hidden', backgroundColor: '#fff', margin: moderateScale(4) },
+  messageImage: { width: scale(220), height: verticalScale(160) },
+  audioWrapper: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: moderateScale(8), backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: moderateScale(12), margin: moderateScale(4), minWidth: moderateScale(150)
+  },
+  audioBtn: {
+    backgroundColor: COLORS.cyan, paddingVertical: moderateScale(6),
+    paddingHorizontal: moderateScale(12), borderRadius: moderateScale(16),
+    marginRight: moderateScale(10)
+  },
+  audioBtnText: { color: '#000', fontWeight: 'bold', fontSize: moderateScale(12) },
+  audioText: { color: COLORS.textPrimary, fontSize: moderateScale(14) },
 });
