@@ -4,17 +4,17 @@ const jwt = require('jsonwebtoken');
 // Register User
 exports.register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, userType } = req.body;
 
     // Check if user exists
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = new User({ username, email, password });
+    user = new User({ username, email, password, userType });
     await user.save();
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user._id, username, email } });
+    res.status(201).json({ token, user: { id: user._id, username, email, userType: user.userType } });
   } catch (err) {
     console.error('Registration Error:', err);
     res.status(500).json({ message: 'Server error during registration', error: err.message });
@@ -33,7 +33,7 @@ exports.login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(200).json({ token, user: { id: user._id, username: user.username, email } });
+    res.status(200).json({ token, user: { id: user._id, username: user.username, email, userType: user.userType } });
   } catch (err) {
     console.error('Login Error:', err);
     res.status(500).json({ message: 'Server error during login', error: err.message });

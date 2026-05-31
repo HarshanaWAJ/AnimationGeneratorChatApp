@@ -22,6 +22,7 @@ load_dotenv(dotenv_path=env_path)
 import io
 import time
 import logging
+import json
 import speech_recognition as sr
 from typing import Optional
 import os
@@ -107,22 +108,33 @@ async def transcribe(file: UploadFile = File(...)):
     try:
         # Read WAV file bytes
         audio_data = await file.read()
-        
-        # Open as a source for SpeechRecognition
+        logger.info(f"[transcribe] Received file: {file.filename}, size: {len(audio_data)} bytes, content_type: {file.content_type}")
+
+        if len(audio_data) == 0:
+            logger.error("[transcribe] Empty audio file received")
+            raise HTTPException(status_code=400, detail="Empty audio file received")
+
+        # Open as a source for SpeechRecognition (expects PCM WAV)
         with sr.AudioFile(io.BytesIO(audio_data)) as source:
+            logger.info(f"[transcribe] Audio source opened — sample_rate={source.SAMPLE_RATE}, channels={source.SAMPLE_WIDTH}")
+            # Adjust for ambient noise to improve accuracy
+            recognizer.adjust_for_ambient_noise(source, duration=0.3)
             audio = recognizer.record(source)
-            
-        # Transcribe using Google (Free)
+
+        logger.info("[transcribe] Sending audio to Google Speech API...")
         text = recognizer.recognize_google(audio)
-        logger.info(f"[transcribe] Result: {text}")
-        
+        logger.info(f"[transcribe] Result: '{text}'")
         return {"text": text}
+
     except sr.UnknownValueError:
-        logger.warning("[transcribe] Speech was unintelligible")
+        logger.warning("[transcribe] Speech was unintelligible — Google could not understand the audio")
         return {"text": "", "error": "Speech was unintelligible"}
+    except sr.RequestError as e:
+        logger.error(f"[transcribe] Google Speech API request failed: {e}")
+        raise HTTPException(status_code=503, detail=f"Google Speech API unavailable: {e}")
     except Exception as e:
-        logger.error(f"[transcribe] Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[transcribe] Unexpected error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
 
 @app.post("/api/animate")
@@ -143,7 +155,7 @@ async def animate(req: AnimateRequest):
             
             logger.info(f"[animate] LLM match score: {best_score:.2f} for label: {train_labels[best_idx]}")
             
-            if best_score > 0.5:
+            if best_score >= 0.5:  # >= so that score=0.5 uses existing animation
                 pred_label = train_labels[best_idx]
                 mp4_path = DATA_DIR / f"{pred_label}.mp4"
                 if mp4_path.exists():
@@ -183,12 +195,11 @@ async def animate(req: AnimateRequest):
                 else:
                     logger.warning(f"[animate] File {mp4_path} not found. Falling back to backend generation.")
             else:
-                logger.info(f"[animate] LLM score too low ({best_score:.2f} <= 0.5). Falling back to backend generation.")
+                logger.info(f"[animate] LLM score too low ({best_score:.2f} < 0.5). Falling back to backend generation.")
         except Exception as e:
             logger.error(f"[animate] LLM matcher error: {e}. Falling back to backend generation.")
 
     # --- 2. Fallback: Procedural Backend Generation ---
-    # 1. Classify action
     action, confidence = classify_action(user_text)
     display_text = extract_display_text(user_text)
     logger.info(f"[animate] Classified as: {action} (confidence={confidence:.2f})")

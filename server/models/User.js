@@ -24,6 +24,12 @@ const UserSchema = new mongoose.Schema({
     type: String, // URL to profile pic or base64
     default: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
   },
+  userType: {
+    type: String,
+    enum: ['normal', 'disabled'],
+    default: 'normal',
+    required: true,
+  },
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

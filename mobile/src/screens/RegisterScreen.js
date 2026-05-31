@@ -18,6 +18,7 @@ export default function RegisterScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [userType, setUserType] = useState('normal'); // 'normal' or 'disabled'
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -25,7 +26,7 @@ export default function RegisterScreen({ navigation }) {
       return Alert.alert('Error', 'Please fill all fields');
     setLoading(true);
     try {
-      await register({ username, email, password });
+      await register({ username, email, password, userType });
       Alert.alert('Success', 'Account created! Please sign in.', [
         { text: 'OK', onPress: () => navigation.navigate('Login') },
       ]);
@@ -88,6 +89,43 @@ export default function RegisterScreen({ navigation }) {
               returnKeyType="done"
               onSubmitEditing={handleRegister}
             />
+
+            <Text style={styles.label}>I am registering as a:</Text>
+            <View style={styles.userTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.userTypeCard,
+                  userType === 'normal' && styles.userTypeCardActive,
+                ]}
+                onPress={() => setUserType('normal')}
+              >
+                <Text
+                  style={[
+                    styles.userTypeCardText,
+                    userType === 'normal' && styles.userTypeCardTextActive,
+                  ]}
+                >
+                  Normal Person
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.userTypeCard,
+                  userType === 'disabled' && styles.userTypeCardActive,
+                ]}
+                onPress={() => setUserType('disabled')}
+              >
+                <Text
+                  style={[
+                    styles.userTypeCardText,
+                    userType === 'disabled' && styles.userTypeCardTextActive,
+                  ]}
+                >
+                  Disabled Person
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -166,6 +204,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: moderateScale(15),
     marginBottom: moderateScale(20),
+  },
+  userTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: moderateScale(20),
+  },
+  userTypeCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: moderateScale(14),
+    paddingVertical: moderateScale(14),
+    alignItems: 'center',
+    marginHorizontal: moderateScale(4),
+  },
+  userTypeCardActive: {
+    borderColor: '#00e0ff',
+    backgroundColor: 'rgba(0, 224, 255, 0.1)',
+  },
+  userTypeCardText: {
+    color: '#8b9cc8',
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+  },
+  userTypeCardTextActive: {
+    color: '#00e0ff',
   },
   button: {
     backgroundColor: '#00e0ff',

@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, TouchableOpacity, Text, Image,
   ActivityIndicator, Platform, Animated, Dimensions,
-  StatusBar, KeyboardAvoidingView,
+  StatusBar, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import { GiftedChat, Bubble, Send, InputToolbar, Composer } from 'react-native-gifted-chat';
-import { useAudioRecorder, useAudioPlayer, RecordingPresets } from 'expo-audio';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import io from 'socket.io-client';
 import { sendMessage, getMessages } from '../services/chat';
@@ -27,23 +27,21 @@ const COLORS = {
 
 const HEADER_HEIGHT = 68;
 
-const AudioMessageBubble = ({ currentMessage }) => {
-  const player = useAudioPlayer(currentMessage.audio);
 
-  if (!currentMessage.audio) return null;
 
+// Renders a message that has an animation GIF + transcribed text
+const AnimatedMessageBubble = ({ currentMessage, isRight }) => {
+  const bgColor = isRight ? COLORS.bubbleRight : COLORS.bubbleLeft;
   return (
-    <View style={styles.audioWrapper}>
-      <TouchableOpacity
-        style={styles.audioBtn}
-        onPress={() => {
-          if (player.playing) player.pause();
-          else player.play();
-        }}
-      >
-        <Text style={styles.audioBtnText}>{player.playing ? '⏸️ Pause' : '▶️ Play'}</Text>
-      </TouchableOpacity>
-      <Text style={styles.audioText}>Voice Message</Text>
+    <View style={[styles.animBubble, { backgroundColor: bgColor }]}>
+      <Image
+        source={{ uri: currentMessage.image }}
+        style={styles.gifImage}
+        resizeMode="contain"
+      />
+      {!!currentMessage.text && currentMessage.text !== '[Voice Message]' && (
+        <Text style={styles.animText}>{currentMessage.text}</Text>
+      )}
     </View>
   );
 };
@@ -54,8 +52,10 @@ export default function ChatRoom({ route, navigation }) {
   const [user, setUser] = useState(null);
   const [socket, setSocket] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const micScale = useRef(new Animated.Value(1)).current;
+  const isRecordingRef = useRef(false); // tracks whether recording actually started
   const insets = useSafeAreaInsets?.() ?? { top: 0, bottom: 0 };
 
   useEffect(() => {
@@ -66,6 +66,23 @@ export default function ChatRoom({ route, navigation }) {
       setIsLoading(false);
     };
     init();
+  }, []);
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        const { granted } = await requestRecordingPermissionsAsync();
+        if (granted) {
+          await setAudioModeAsync({
+            allowsRecording: true,
+            playsInSilentMode: true,
+          });
+        }
+      } catch (err) {
+        console.warn('Microphone permission check/request failed:', err);
+      }
+    };
+    checkPermissions();
   }, []);
 
   useEffect(() => {
@@ -110,32 +127,105 @@ export default function ChatRoom({ route, navigation }) {
 
   const onSend = useCallback(async (msgs = []) => {
     const msg = msgs[0];
-    const saved = await sendMessage({ receiverId: recipientId, type: 'text', text: msg.text });
-    setMessages((prev) => {
+    // Add an optimistic placeholder so user sees their text immediately
+    const placeholderId = `temp_${Date.now()}`;
+    const placeholder = {
+      _id: placeholderId,
+      text: msg.text,
+      createdAt: new Date(),
+      user: { _id: user?._id || 'temp' },
+      pending: true,
+    };
+    setMessages((prev) => GiftedChat.append(prev, [placeholder]));
+    setIsSending(true);
+    try {
+      const saved = await sendMessage({ receiverId: recipientId, type: 'text', text: msg.text });
       const newMsg = formatMessage(saved);
-      if (prev.some((m) => m._id === newMsg._id)) return prev;
-      return GiftedChat.append(prev, newMsg);
-    });
-  }, [recipientId]);
+      // Replace placeholder with real message (which has gifUrl → image)
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m._id !== placeholderId);
+        if (filtered.some((m) => m._id === newMsg._id)) return filtered;
+        return GiftedChat.append(filtered, [newMsg]);
+      });
+    } catch (err) {
+      console.error('sendMessage failed:', err);
+      // Remove placeholder on error
+      setMessages((prev) => prev.filter((m) => m._id !== placeholderId));
+    } finally {
+      setIsSending(false);
+    }
+  }, [recipientId, user]);
 
   const animateMic = (active) => {
     Animated.spring(micScale, { toValue: active ? 1.2 : 1, useNativeDriver: true }).start();
   };
   const startRecording = async () => {
-    await audioRecorder.prepare(); await audioRecorder.record(); animateMic(true);
+    try {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Microphone Permission', 'Microphone access is required to send voice messages.');
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      await audioRecorder.record();
+      isRecordingRef.current = true; // mark as truly started
+      animateMic(true);
+    } catch (err) {
+      isRecordingRef.current = false;
+      console.error('Failed to start recording:', err);
+      Alert.alert('Error', 'Failed to start recording: ' + err.message);
+    }
   };
+
   const stopRecording = async () => {
-    if (!audioRecorder.isRecording) return;
+    // Only stop if recording actually started successfully
+    if (!isRecordingRef.current) return;
+    isRecordingRef.current = false;
     animateMic(false);
-    await audioRecorder.stop();
-    const uri = audioRecorder.uri;
-    if (uri) {
-      const saved = await sendMessage({ receiverId: recipientId, type: 'audio', audioUri: uri });
-      setMessages((prev) => {
+    try {
+      // stop() returns a RecordingResult with a uri property
+      const result = await audioRecorder.stop();
+      const uri = result?.uri;
+      if (!uri) return;
+
+      // Add placeholder so user sees feedback immediately
+      const placeholderId = `temp_voice_${Date.now()}`;
+      const placeholder = {
+        _id: placeholderId,
+        text: '🎤 Transcribing & animating...',
+        createdAt: new Date(),
+        user: { _id: user?._id || 'temp' },
+        pending: true,
+      };
+      setMessages((prev) => GiftedChat.append(prev, [placeholder]));
+      setIsSending(true);
+
+      try {
+        const saved = await sendMessage({
+          receiverId: recipientId,
+          type: 'voice',
+          audioUri: uri,
+        });
         const newMsg = formatMessage(saved);
-        if (prev.some((m) => m._id === newMsg._id)) return prev;
-        return GiftedChat.append(prev, newMsg);
-      });
+        // Replace placeholder with real message (transcribed text + GIF)
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m._id !== placeholderId);
+          if (filtered.some((m) => m._id === newMsg._id)) return filtered;
+          return GiftedChat.append(filtered, [newMsg]);
+        });
+      } catch (err) {
+        // Remove placeholder on failure
+        setMessages((prev) => prev.filter((m) => m._id !== placeholderId));
+        const errMsg = err?.message || 'Voice message failed. Please speak clearly and try again.';
+        Alert.alert('Voice Message Failed', errMsg);
+        console.error('Voice sendMessage failed:', err);
+      } finally {
+        setIsSending(false);
+      }
+    } catch (err) {
+      console.error('Failed to stop recording:', err);
+      Alert.alert('Error', 'Failed to stop recording: ' + err.message);
     }
   };
 
@@ -170,6 +260,7 @@ export default function ChatRoom({ route, navigation }) {
             user={{ _id: user?._id || 'temp' }}
             inverted={!IS_WEB}
             isKeyboardInternallyHandled={false}
+            disableComposer={isSending}
             // ── FIX 2: bottomOffset on Android too ──
             bottomOffset={
               Platform.OS === 'ios'
@@ -179,34 +270,35 @@ export default function ChatRoom({ route, navigation }) {
             listViewProps={{ keyboardShouldPersistTaps: 'handled' }}
             messagesContainerStyle={{ backgroundColor: 'transparent' }}
 
-            renderBubble={(props) => (
-              <Bubble
-                {...props}
-                wrapperStyle={{
-                  right: { backgroundColor: COLORS.bubbleRight, padding: moderateScale(2) },
-                  left: { backgroundColor: COLORS.bubbleLeft, padding: moderateScale(2) },
-                }}
-                textStyle={{
-                  right: { color: COLORS.textPrimary },
-                  left: { color: COLORS.textPrimary },
-                }}
-              />
-            )}
-
-            renderMessageImage={(props) => {
-              if (!props.currentMessage.image) return null;
-              return (
-                <View style={styles.imageWrapper}>
-                  <Image
-                    source={{ uri: props.currentMessage.image }}
-                    style={styles.messageImage}
-                    resizeMode="contain"
+            renderBubble={(props) => {
+              // If this message has a GIF animation, use the custom animated bubble
+              if (props.currentMessage.image) {
+                const isRight = props.currentMessage.user._id === (user?._id || 'temp');
+                return (
+                  <AnimatedMessageBubble
+                    currentMessage={props.currentMessage}
+                    isRight={isRight}
                   />
-                </View>
+                );
+              }
+              // Normal text bubble
+              return (
+                <Bubble
+                  {...props}
+                  wrapperStyle={{
+                    right: { backgroundColor: COLORS.bubbleRight, padding: moderateScale(2) },
+                    left: { backgroundColor: COLORS.bubbleLeft, padding: moderateScale(2) },
+                  }}
+                  textStyle={{
+                    right: { color: COLORS.textPrimary },
+                    left: { color: COLORS.textPrimary },
+                  }}
+                />
               );
             }}
 
-            renderMessageAudio={(props) => <AudioMessageBubble {...props} />}
+            /* renderMessageImage is suppressed — GIF rendering handled inside renderBubble */
+            renderMessageImage={() => null}
 
             renderActions={() => (
               <View style={styles.actionContainer}>
@@ -247,6 +339,14 @@ export default function ChatRoom({ route, navigation }) {
           />
         )}
       </KeyboardAvoidingView>
+
+      {/* Sending overlay — shown while GIF is being generated */}
+      {isSending && (
+        <View style={styles.sendingOverlay}>
+          <ActivityIndicator color={COLORS.cyan} size="large" />
+          <Text style={styles.sendingText}>🎬 Generating animation...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -304,4 +404,46 @@ const styles = StyleSheet.create({
   },
   audioBtnText: { color: '#000', fontWeight: 'bold', fontSize: moderateScale(12) },
   audioText: { color: COLORS.textPrimary, fontSize: moderateScale(14) },
+  // Animation GIF bubble styles
+  animBubble: {
+    borderRadius: moderateScale(14),
+    overflow: 'hidden',
+    margin: moderateScale(4),
+    maxWidth: scale(260),
+    alignItems: 'center',
+    padding: moderateScale(6),
+  },
+  gifImage: {
+    width: scale(240),
+    height: scale(240),
+    borderRadius: moderateScale(10),
+  },
+  animText: {
+    color: COLORS.textPrimary,
+    fontSize: moderateScale(13),
+    textAlign: 'center',
+    marginTop: moderateScale(6),
+    paddingHorizontal: moderateScale(8),
+    fontStyle: 'italic',
+  },
+  sendingOverlay: {
+    position: 'absolute',
+    bottom: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,229,255,0.12)',
+    borderWidth: 1,
+    borderColor: COLORS.cyan,
+    borderRadius: moderateScale(14),
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(20),
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sendingText: {
+    color: COLORS.cyan,
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    marginLeft: moderateScale(12),
+  },
 });

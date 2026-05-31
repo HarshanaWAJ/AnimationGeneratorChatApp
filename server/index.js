@@ -21,6 +21,7 @@ app.use(morgan('dev'));
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads'));
 
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -29,8 +30,8 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/user')); // Handles search and friends
-app.use('/api/messages', require('./routes/user')); // Logic moved to consolidated route
+app.use('/api/users', require('./routes/user'));
+app.use('/api/messages', require('./routes/message')); // dedicated message route
 
 // Socket.io for Real-time Messaging
 io.on('connection', (socket) => {

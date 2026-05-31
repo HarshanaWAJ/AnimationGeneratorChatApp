@@ -39,7 +39,8 @@ export const sendMessage = async (messageData) => {
       headers: { 
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 360000, // 6 minutes — GIF generation can take 80+ seconds
     });
     return response.data;
   } catch (error) {

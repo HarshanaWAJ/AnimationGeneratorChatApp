@@ -1,73 +1,140 @@
 const Message = require('../models/Message');
+const User = require('../models/User');
 const axios = require('axios');
 const fs = require('fs');
 const FormData = require('form-data');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Send Message (Text or Voice)
 exports.sendMessage = async (req, res) => {
   try {
     const { receiverId, type, text: input_text } = req.body;
     const senderId = req.user.id;
-    let final_text = input_text;
-    let gifData = null; 
+    let final_text = input_text || '';
+    let gifData = null;
     let audioData = null;
 
-    // 1. If voice, convert audio to text then DELETE
-    if (type === 'voice' && req.file) {
+    // 1. If voice message: M4A → WAV (PCM 16kHz mono) → transcribe → treat as text
+    if (type === 'voice') {
+      if (!req.file) {
+        console.error('❌ Voice message received but no audio file attached!');
+        return res.status(400).json({ message: 'Voice file missing from request' });
+      }
+
       const audio_path = req.file.path;
-      
-      const transcribeData = new FormData();
-      transcribeData.append('file', fs.createReadStream(audio_path));
+      const wav_path   = audio_path + '.wav';
+      console.log('🎙️  Voice received — file saved at:', audio_path);
 
+      const cleanupTempFiles = () => {
+        try { fs.unlinkSync(audio_path); } catch (_) {}
+        try { if (fs.existsSync(wav_path)) fs.unlinkSync(wav_path); } catch (_) {}
+      };
+
+      // Step 1: Convert to PCM 16kHz mono WAV (required by speech_recognition AudioFile)
       try {
-        // 1a. Capture Audio as Base64 before deleting
-        const audioBuffer = fs.readFileSync(audio_path);
-        audioData = `data:audio/wav;base64,${audioBuffer.toString('base64')}`;
-
-        const transcribeData = new FormData();
-        transcribeData.append('file', fs.createReadStream(audio_path));
-
-        const transcribeRes = await axios.post(`${process.env.ANIMATION_SERVICE_URL}/api/transcribe`, transcribeData, {
-          headers: {
-            ...transcribeData.getHeaders()
-          }
+        await new Promise((resolve, reject) => {
+          ffmpeg(audio_path)
+            .audioCodec('pcm_s16le')   // PCM signed 16-bit little-endian
+            .audioFrequency(16000)     // 16 kHz sample rate
+            .audioChannels(1)          // mono
+            .toFormat('wav')
+            .on('start',  (cmd) => console.log('🔧 FFmpeg command:', cmd))
+            .on('end',    ()    => { console.log('✅ FFmpeg → WAV done'); resolve(); })
+            .on('error',  (err) => { console.error('❌ FFmpeg error:', err.message); reject(err); })
+            .save(wav_path);
         });
-        final_text = transcribeRes.data.text;
-      } catch (err) {
-        console.error('Local STT Transcription Error:', err.message);
-      } finally {
-        // Ephemeral: Delete audio file immediately
-        fs.unlink(audio_path, (err) => {
-          if (err) console.error('Failed to delete temp audio:', err);
+      } catch (ffmpegErr) {
+        cleanupTempFiles();
+        return res.status(500).json({ message: 'Audio conversion failed: ' + ffmpegErr.message });
+      }
+
+      // Step 2: Read the WAV bytes and POST to Python /api/transcribe
+      let transcribed = '';
+      try {
+        const transcribeData = new FormData();
+        transcribeData.append('file', fs.createReadStream(wav_path), {
+          filename: 'audio.wav',
+          contentType: 'audio/wav',
+        });
+
+        const ANIM_URL = process.env.ANIMATION_SERVICE_URL || 'http://localhost:8000';
+        console.log('📡 POSTing WAV to', `${ANIM_URL}/api/transcribe`);
+
+        const transcribeRes = await axios.post(`${ANIM_URL}/api/transcribe`, transcribeData, {
+          headers: { ...transcribeData.getHeaders() },
+          timeout: 60000,
+        });
+
+        transcribed = (transcribeRes.data.text || '').trim();
+        console.log('📝 Transcription result:', transcribed || '(empty — unintelligible)');
+
+      } catch (transcribeErr) {
+        console.error('❌ Transcription call failed:', transcribeErr.response?.data || transcribeErr.message);
+        cleanupTempFiles();
+        return res.status(500).json({
+          message: 'Voice transcription failed. Is the Python server running? (' + (transcribeErr.message || 'unknown') + ')'
         });
       }
+
+      // Always clean up temp files after transcription completes
+      cleanupTempFiles();
+
+      if (!transcribed) {
+        return res.status(422).json({
+          message: 'Could not understand the voice message. Please speak clearly and try again.'
+        });
+      }
+
+      // Treat transcribed text exactly like a typed text message
+      final_text = transcribed;
+      console.log('✅ Voice → text:', final_text);
     }
 
-    if (!final_text) return res.status(400).json({ message: 'No message content' });
+    // Guard: must have some text content by now
+    if (!final_text || !final_text.trim()) {
+      return res.status(400).json({ message: 'No message content to send' });
+    }
 
-    // 2. Call local Python Animation Service to get the GIF (Ephemeral)
+    // 2. Generate animation GIF for ALL users
+    const ANIM_URL = process.env.ANIMATION_SERVICE_URL || 'http://localhost:8000';
+    console.log('🎬 Calling animation service at:', `${ANIM_URL}/api/animate`, 'with text:', final_text);
     try {
-      const animationRes = await axios.post(`${process.env.ANIMATION_SERVICE_URL}/api/animate`, {
-        action: final_text
-      }, { responseType: 'arraybuffer' });
-
-      gifData = `data:image/gif;base64,${Buffer.from(animationRes.data).toString('base64')}`;
+      const animationRes = await axios.post(
+        `${ANIM_URL}/api/animate`,
+        { action: final_text },
+        { responseType: 'arraybuffer', timeout: 300000 } // 5 minutes (generation can be slow)
+      );
+      const gifFilename = `anim_${Date.now()}.gif`;
+      const publicGifPath = `uploads/${gifFilename}`;
+      fs.writeFileSync(publicGifPath, Buffer.from(animationRes.data));
+      const hostUrl = `${req.protocol}://${req.get('host')}`;
+      gifData = `${hostUrl}/uploads/${gifFilename}`;
+      console.log('✅ Animation generated and saved:', publicGifPath);
     } catch (err) {
-      console.error('Animation Service Error:', err.message);
+      // Log the full error — common cause: Python server not running
+      if (err.code === 'ECONNREFUSED') {
+        console.error('❌ Animation service is NOT running at', ANIM_URL, '— start your Python server!');
+      } else {
+        console.error('❌ Animation Service Error:', err.response?.status, err.response?.data || err.message);
+      }
+      // Message still gets saved — just without GIF
     }
 
-    // 3. Save only Text to MongoDB
+    // 4. Save message to MongoDB — voice messages are stored as text (no audioUrl)
     const newMessage = new Message({
       sender: senderId,
       receiver: receiverId,
-      type,
+      type: 'text',   // always 'text' — voice is transcribed before this point
       text: final_text,
       gifUrl: gifData,
-      audioUrl: audioData,
+      audioUrl: null, // voice audio is never persisted
     });
     await newMessage.save();
+    console.log('💾 Message saved:', newMessage._id, '| text:', final_text, '| hasGif:', !!gifData);
 
-    // 4. Broadcast Enriched Payload via Socket.io (Real-time only)
+    // 5. Broadcast via Socket.io to receiver's room
     const io = req.app.get('io');
     if (io) {
       const payload = {
@@ -76,17 +143,18 @@ exports.sendMessage = async (req, res) => {
         receiver: receiverId,
         text: final_text,
         type,
-        gifUrl: gifData, 
-        audioUrl: audioData,
-        createdAt: newMessage.createdAt
+        gifUrl: gifData,
+        audioUrl: null,
+        createdAt: newMessage.createdAt,
       };
-      // Emit to the receiver's room
       io.to(receiverId).emit('receive_message', payload);
-      // Also emit back to the sender for confirmation if needed (or just return in res)
     }
 
-    res.status(201).json({ ...newMessage.toObject(), gifUrl: gifData });
+    // 6. Return saved message to sender
+    res.status(201).json({ ...newMessage.toObject(), gifUrl: gifData, audioUrl: null });
+
   } catch (err) {
+    console.error('❌ sendMessage fatal error:', err.message, err.stack);
     res.status(500).json({ message: 'Failed to send message', error: err.message });
   }
 };
@@ -100,8 +168,8 @@ exports.getMessages = async (req, res) => {
     const messages = await Message.find({
       $or: [
         { sender: myId, receiver: otherUserId },
-        { sender: otherUserId, receiver: myId }
-      ]
+        { sender: otherUserId, receiver: myId },
+      ],
     }).sort('createdAt');
 
     res.status(200).json(messages);
