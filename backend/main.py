@@ -151,11 +151,12 @@ async def animate(req: AnimateRequest):
             emb = embedder.encode([user_text])
             similarities = cosine_similarity(emb, train_embeddings)[0]
             best_idx = np.argmax(similarities)
-            best_score = similarities[best_idx]
+            best_score = float(similarities[best_idx])
+            best_score_rounded = round(best_score, 2)
             
-            logger.info(f"[animate] LLM match score: {best_score:.2f} for label: {train_labels[best_idx]}")
+            logger.info(f"[animate] LLM match score: {best_score_rounded:.2f} for label: {train_labels[best_idx]}")
             
-            if best_score >= 0.5:  # >= so that score=0.5 uses existing animation
+            if best_score_rounded >= 0.50:  # >= so that score=0.5 uses existing animation
                 pred_label = train_labels[best_idx]
                 mp4_path = DATA_DIR / f"{pred_label}.mp4"
                 if mp4_path.exists():
@@ -195,14 +196,16 @@ async def animate(req: AnimateRequest):
                 else:
                     logger.warning(f"[animate] File {mp4_path} not found. Falling back to backend generation.")
             else:
-                logger.info(f"[animate] LLM score too low ({best_score:.2f} < 0.5). Falling back to backend generation.")
+                logger.info(f"[animate] LLM score too low ({best_score_rounded:.2f} < 0.50). Falling back to backend generation.")
         except Exception as e:
             logger.error(f"[animate] LLM matcher error: {e}. Falling back to backend generation.")
 
     # --- 2. Fallback: Procedural Backend Generation ---
-    action, confidence = classify_action(user_text)
+    # Per requirements: if 1st classification fails, must generate new animations.
+    action = "dynamic"
+    confidence = 1.0
     display_text = extract_display_text(user_text)
-    logger.info(f"[animate] Classified as: {action} (confidence={confidence:.2f})")
+    logger.info(f"[animate] Forcing new animation generation (action='dynamic')")
 
     if action == "dynamic":
         logger.info("[animate] Action 'dynamic' chosen. Generating keyframes with Gemini...")

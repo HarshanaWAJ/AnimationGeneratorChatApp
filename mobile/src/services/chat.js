@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 import { getToken } from './auth';
 import config from '../utils/config';
 
@@ -27,23 +28,40 @@ export const sendMessage = async (messageData) => {
     formData.append('text', messageData.text);
   } else {
     // For voice, append the file
+    let audioUri = messageData.audioUri;
+    if (Platform.OS === 'android' && !audioUri.startsWith('file://') && !audioUri.startsWith('content://')) {
+      audioUri = `file://${audioUri}`;
+    }
+
     formData.append('audio', {
-      uri: messageData.audioUri,
+      uri: audioUri,
       name: 'voice.m4a',
       type: 'audio/m4a',
     });
   }
 
   try {
-    const response = await axios.post(`${API_URL}/send`, formData, {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
+    const response = await fetch(`${API_URL}/send`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
       },
-      timeout: 360000, // 6 minutes — GIF generation can take 80+ seconds
+      body: formData,
     });
-    return response.data;
+    
+    if (!response.ok) {
+      let errorData;
+      const errorText = await response.text();
+      try { 
+        errorData = JSON.parse(errorText); 
+      } catch(e) { 
+        errorData = { message: errorText || response.statusText }; 
+      }
+      throw errorData;
+    }
+
+    return await response.json();
   } catch (error) {
-    throw error.response?.data || error.message;
+    throw error.message ? error : new Error(String(error));
   }
 };

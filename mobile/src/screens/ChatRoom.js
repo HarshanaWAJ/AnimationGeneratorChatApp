@@ -56,6 +56,7 @@ export default function ChatRoom({ route, navigation }) {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const micScale = useRef(new Animated.Value(1)).current;
   const isRecordingRef = useRef(false); // tracks whether recording actually started
+  const recordingStartTimeRef = useRef(0);
   const insets = useSafeAreaInsets?.() ?? { top: 0, bottom: 0 };
 
   useEffect(() => {
@@ -170,6 +171,7 @@ export default function ChatRoom({ route, navigation }) {
       await audioRecorder.prepareToRecordAsync();
       await audioRecorder.record();
       isRecordingRef.current = true; // mark as truly started
+      recordingStartTimeRef.current = Date.now();
       animateMic(true);
     } catch (err) {
       isRecordingRef.current = false;
@@ -183,10 +185,17 @@ export default function ChatRoom({ route, navigation }) {
     if (!isRecordingRef.current) return;
     isRecordingRef.current = false;
     animateMic(false);
+
+    // Prevent MediaRecorder crash on Android by ensuring recording lasts at least 500ms
+    const duration = Date.now() - recordingStartTimeRef.current;
+    if (duration < 500) {
+      await new Promise(resolve => setTimeout(resolve, 500 - duration));
+    }
+
     try {
-      // stop() returns a RecordingResult with a uri property
-      const result = await audioRecorder.stop();
-      const uri = result?.uri;
+      // In expo-audio, the uri is a property on the recorder itself
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
       if (!uri) return;
 
       // Add placeholder so user sees feedback immediately
@@ -225,6 +234,10 @@ export default function ChatRoom({ route, navigation }) {
       }
     } catch (err) {
       console.error('Failed to stop recording:', err);
+      if (err.message && err.message.includes('stop failed')) {
+        console.warn('Ignored Android stop failed exception (recording too short).');
+        return;
+      }
       Alert.alert('Error', 'Failed to stop recording: ' + err.message);
     }
   };
@@ -372,7 +385,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.06)',
     // NOTE: paddingBottom is set dynamically via insets.bottom in renderInputToolbar
   },
-  composerInput: { color: COLORS.textPrimary, fontSize: moderateScale(15) },
+  composerInput: { color: '#ffffff', fontSize: moderateScale(15) },
   sendContainer: { justifyContent: 'center' },
   sendBtn: {
     backgroundColor: COLORS.cyan,

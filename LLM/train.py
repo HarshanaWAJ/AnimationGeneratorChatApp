@@ -64,7 +64,7 @@ def main():
     texts, labels = load_data()
     print(f"Loaded {len(texts)} samples.")
 
-    print("Validating animation files (auto‑generate missing)...")
+    print("Validating animation files (auto-generate missing)...")
     valid_labels = validate_labels(labels, auto_generate=True)
 
     # keep only valid examples
