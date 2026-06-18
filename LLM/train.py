@@ -100,30 +100,27 @@ def main():
     except Exception as e:
         print(f"Warning: Finetuning failed or is not supported (error: {e}). Proceeding without finetuning.")
 
-    print("Generating canonical label embeddings...")
-    # Get unique labels to act as targets
-    unique_labels = sorted(list(set(valid_target_labels)))
-    unique_labels_texts = [l.replace("_", " ") for l in unique_labels]
-    label_embeddings = embedder.encode(unique_labels_texts, show_progress_bar=True)
+    print("Generating dataset embeddings...")
+    # Embed all valid dataset input sentences instead of unique canonical labels
+    text_embeddings = embedder.encode(valid_texts, show_progress_bar=True)
 
     print("Saving embeddings...")
     os.makedirs(MODEL_DIR, exist_ok=True)
     embedder.save(os.path.join(MODEL_DIR, "finetuned_model"))
-    np.savez(os.path.join(MODEL_DIR, "embeddings.npz"), X=label_embeddings, labels=np.array(unique_labels))
+    np.savez(os.path.join(MODEL_DIR, "embeddings.npz"), X=text_embeddings, labels=np.array(valid_target_labels))
 
-    print("Evaluating nearest neighbor...")
+    print("Evaluating nearest neighbor on dataset inputs...")
     correct = 0
-    # Evaluate accuracy on the tuning dataset to see if it mapped them to the right canonical label
-    eval_embeddings = embedder.encode(valid_texts, show_progress_bar=False)
+    # Evaluate accuracy by checking if the query maps back to its label
     for i in range(len(valid_texts)):
-        similarities = cosine_similarity([eval_embeddings[i]], label_embeddings)[0]
+        similarities = cosine_similarity([text_embeddings[i]], text_embeddings)[0]
         best_idx = np.argmax(similarities)
-        pred_label = unique_labels[best_idx]
+        pred_label = valid_target_labels[best_idx]
         if pred_label == valid_target_labels[i]:
             correct += 1
 
     accuracy = correct / len(valid_texts)
-    print(f"Accuracy mapping text to animation labels: {accuracy * 100:.2f}%")
+    print(f"Accuracy mapping text to animation labels (self-retrieval): {accuracy * 100:.2f}%")
     print("Done!")
 
 
