@@ -5,35 +5,35 @@ tags:
 - feature-extraction
 - dense
 - generated_from_trainer
-- dataset_size:163
+- dataset_size:1564
 - loss:MultipleNegativesRankingLoss
 base_model: sentence-transformers/all-MiniLM-L6-v2
 widget:
-- source_sentence: Running slow
+- source_sentence: Excuse me, but i am skipping
   sentences:
-  - running slow
-  - badminton
-  - slight bow
-- source_sentence: Goodbye
+  - skipping
+  - swim
+  - book open
+- source_sentence: Can you come here?, if that makes sense.
   sentences:
-  - happy
-  - waves and walks away
-  - walks up steps
-- source_sentence: I am cold
+  - charging the phone
+  - telescope
+  - come here
+- source_sentence: I need to let you know that i am teaching
   sentences:
-  - shivering
-  - checking time
-  - drinking
-- source_sentence: Be quiet
+  - stretches and smiles
+  - teaching
+  - rest
+- source_sentence: I am currently feeling like good night
   sentences:
-  - working laptop
-  - shopping
-  - quiet
-- source_sentence: Call the doctor
+  - stretches and smiles
+  - weight lifting
+  - good night
+- source_sentence: Excuse me, but show me the way
   sentences:
-  - checking time
-  - call the doctor
-  - calling
+  - holds stomach
+  - skipping
+  - points ahead
 pipeline_tag: sentence-similarity
 library_name: sentence-transformers
 ---
@@ -88,9 +88,9 @@ from sentence_transformers import SentenceTransformer
 model = SentenceTransformer("sentence_transformers_model_id")
 # Run inference
 sentences = [
-    'Call the doctor',
-    'call the doctor',
-    'calling',
+    'Excuse me, but show me the way',
+    'points ahead',
+    'holds stomach',
 ]
 embeddings = model.encode(sentences)
 print(embeddings.shape)
@@ -99,9 +99,9 @@ print(embeddings.shape)
 # Get the similarity scores for the embeddings
 similarities = model.similarity(embeddings, embeddings)
 print(similarities)
-# tensor([[1.0000, 1.0000, 0.1496],
-#         [1.0000, 1.0000, 0.1496],
-#         [0.1496, 0.1496, 1.0000]])
+# tensor([[ 1.0000,  0.7274, -0.0188],
+#         [ 0.7274,  1.0000, -0.0016],
+#         [-0.0188, -0.0016,  1.0000]])
 ```
 
 <!--
@@ -146,19 +146,19 @@ You can finetune this model on your own dataset.
 
 #### Unnamed Dataset
 
-* Size: 163 training samples
+* Size: 1,564 training samples
 * Columns: <code>sentence_0</code> and <code>sentence_1</code>
-* Approximate statistics based on the first 163 samples:
-  |         | sentence_0                                                                      | sentence_1                                                                      |
-  |:--------|:--------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
-  | type    | string                                                                          | string                                                                          |
-  | details | <ul><li>min: 3 tokens</li><li>mean: 5.28 tokens</li><li>max: 9 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 3.64 tokens</li><li>max: 6 tokens</li></ul> |
+* Approximate statistics based on the first 1000 samples:
+  |         | sentence_0                                                                        | sentence_1                                                                      |
+  |:--------|:----------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
+  | type    | string                                                                            | string                                                                          |
+  | details | <ul><li>min: 3 tokens</li><li>mean: 10.52 tokens</li><li>max: 20 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 3.64 tokens</li><li>max: 6 tokens</li></ul> |
 * Samples:
-  | sentence_0                 | sentence_1           |
-  |:---------------------------|:---------------------|
-  | <code>Danger nearby</code> | <code>warning</code> |
-  | <code>I am bored</code>    | <code>bored</code>   |
-  | <code>Hurry up</code>      | <code>hurryup</code> |
+  | sentence_0                                                            | sentence_1              |
+  |:----------------------------------------------------------------------|:------------------------|
+  | <code>wave because I really mean it.</code>                           | <code>waves hand</code> |
+  | <code>If I am being completely honest, it's raining right now.</code> | <code>raining</code>    |
+  | <code>If I am being completely honest, i am clapping</code>           | <code>clapping</code>   |
 * Loss: [<code>MultipleNegativesRankingLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#multiplenegativesrankingloss) with these parameters:
   ```json
   {
@@ -284,6 +284,12 @@ You can finetune this model on your own dataset.
 - `learning_rate_mapping`: {}
 
 </details>
+
+### Training Logs
+| Epoch  | Step | Training Loss |
+|:------:|:----:|:-------------:|
+| 5.1020 | 500  | 0.1600        |
+
 
 ### Framework Versions
 - Python: 3.11.0

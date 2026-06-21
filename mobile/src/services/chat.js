@@ -27,41 +27,41 @@ export const sendMessage = async (messageData) => {
   if (messageData.type === 'text') {
     formData.append('text', messageData.text);
   } else {
-    // For voice, append the file
-    let audioUri = messageData.audioUri;
-    if (Platform.OS === 'android' && !audioUri.startsWith('file://') && !audioUri.startsWith('content://')) {
-      audioUri = `file://${audioUri}`;
-    }
+    // For voice, append the file properly based on platform
+    if (Platform.OS === 'web') {
+      try {
+        const fetchRes = await fetch(messageData.audioUri);
+        const blob = await fetchRes.blob();
+        formData.append('audio', blob, 'voice.m4a');
+      } catch (err) {
+        console.error('Failed to convert audio URI to Blob on web:', err);
+      }
+    } else {
+      let audioUri = messageData.audioUri;
+      if (Platform.OS === 'android' && !audioUri.startsWith('file://') && !audioUri.startsWith('content://')) {
+        audioUri = `file://${audioUri}`;
+      }
 
-    formData.append('audio', {
-      uri: audioUri,
-      name: 'voice.m4a',
-      type: 'audio/m4a',
-    });
+      formData.append('audio', {
+        uri: audioUri,
+        name: 'voice.m4a',
+        type: 'audio/m4a',
+      });
+    }
   }
 
   try {
-    const response = await fetch(`${API_URL}/send`, {
-      method: 'POST',
+    const response = await axios.post(`${API_URL}/send`, formData, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
       },
-      body: formData,
     });
-    
-    if (!response.ok) {
-      let errorData;
-      const errorText = await response.text();
-      try { 
-        errorData = JSON.parse(errorText); 
-      } catch(e) { 
-        errorData = { message: errorText || response.statusText }; 
-      }
-      throw errorData;
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
+    if (error.response) {
+      throw error.response.data;
+    }
     throw error.message ? error : new Error(String(error));
   }
 };

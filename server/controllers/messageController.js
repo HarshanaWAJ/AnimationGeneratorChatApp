@@ -97,13 +97,49 @@ exports.sendMessage = async (req, res) => {
       return res.status(400).json({ message: 'No message content to send' });
     }
 
+    // Advanced Mapping Logic to fix meaning mapping (especially for long sentences)
+    const lowerText = final_text.toLowerCase();
+    let action_text = final_text;
+
+    // Greeting / Morning -> wave
+    if (lowerText.includes('good morning') || lowerText.includes('morning') || lowerText.includes('hello') || lowerText.includes('hi ') || lowerText.match(/^hi$/)) {
+      action_text = 'wave';
+    } 
+    // Sleep / Night -> sleep
+    else if (lowerText.includes('good night') || lowerText.includes('sleep') || lowerText.includes('tired')) {
+      action_text = 'sleep';
+    }
+    // Happy / Excited -> celebrate or happy
+    else if (lowerText.includes('great') || lowerText.includes('awesome') || lowerText.includes('happy')) {
+      action_text = 'happy';
+    }
+    // How are you -> gesturing
+    else if (lowerText.includes('how are you') || lowerText.includes('what is up')) {
+      action_text = 'gesturing';
+    }
+    else if (lowerText.includes('eat') || lowerText.includes('hungry') || lowerText.includes('food') || lowerText.includes('breakfast') || lowerText.includes('lunch') || lowerText.includes('dinner')) {
+      action_text = 'eat';
+    }
+    else if (lowerText.includes('sad') || lowerText.includes('bad') || lowerText.includes('sorry')) {
+      action_text = 'sad';
+    }
+    else if (lowerText.includes('angry') || lowerText.includes('mad') || lowerText.includes('furious')) {
+      action_text = 'angry';
+    }
+    else if (lowerText.includes('work') || lowerText.includes('job') || lowerText.includes('study')) {
+      action_text = 'desk_work';
+    }
+    else if (lowerText.includes('dance') || lowerText.includes('party') || lowerText.includes('music')) {
+      action_text = 'dance';
+    }
+
     // 2. Generate animation GIF for ALL users
     const ANIM_URL = process.env.ANIMATION_SERVICE_URL || 'http://localhost:8000';
-    console.log('🎬 Calling animation service at:', `${ANIM_URL}/api/animate`, 'with text:', final_text);
+    console.log('🎬 Calling animation service at:', `${ANIM_URL}/api/animate`, 'with text:', action_text);
     try {
       const animationRes = await axios.post(
         `${ANIM_URL}/api/animate`,
-        { action: final_text },
+        { action: action_text },
         { responseType: 'arraybuffer', timeout: 300000 } // 5 minutes (generation can be slow)
       );
       const gifFilename = `anim_${Date.now()}.gif`;

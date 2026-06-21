@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, TouchableOpacity, Text, Image,
   ActivityIndicator, Platform, Animated, Dimensions,
-  StatusBar, KeyboardAvoidingView, Alert,
+  StatusBar, KeyboardAvoidingView, Alert, PanResponder,
 } from 'react-native';
 import { GiftedChat, Bubble, Send, InputToolbar, Composer } from 'react-native-gifted-chat';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
@@ -33,7 +33,7 @@ const HEADER_HEIGHT = 68;
 const AnimatedMessageBubble = ({ currentMessage, isRight }) => {
   const bgColor = isRight ? COLORS.bubbleRight : COLORS.bubbleLeft;
   return (
-    <View style={[styles.animBubble, { backgroundColor: bgColor }]}>
+    <View style={[styles.animBubble, { backgroundColor: bgColor, alignSelf: isRight ? 'flex-end' : 'flex-start' }]}>
       <Image
         source={{ uri: currentMessage.image }}
         style={styles.gifImage}
@@ -58,6 +58,23 @@ export default function ChatRoom({ route, navigation }) {
   const isRecordingRef = useRef(false); // tracks whether recording actually started
   const recordingStartTimeRef = useRef(0);
   const insets = useSafeAreaInsets?.() ?? { top: 0, bottom: 0 };
+  
+  // WhatsApp Voice UX State
+  const [isRecordingUI, setIsRecordingUI] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const isCancelledRef = useRef(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (isRecordingUI) {
+      setRecordDuration(0);
+      timerRef.current = setInterval(() => setRecordDuration(d => d + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isRecordingUI]);
 
   useEffect(() => {
     const init = async () => {
@@ -165,40 +182,48 @@ export default function ChatRoom({ route, navigation }) {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
         Alert.alert('Microphone Permission', 'Microphone access is required to send voice messages.');
+        setIsRecordingUI(false);
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await audioRecorder.prepareToRecordAsync();
       await audioRecorder.record();
-      isRecordingRef.current = true; // mark as truly started
+      isRecordingRef.current = true;
       recordingStartTimeRef.current = Date.now();
       animateMic(true);
     } catch (err) {
       isRecordingRef.current = false;
+      setIsRecordingUI(false);
       console.error('Failed to start recording:', err);
       Alert.alert('Error', 'Failed to start recording: ' + err.message);
     }
   };
 
-  const stopRecording = async () => {
-    // Only stop if recording actually started successfully
+  const stopRecording = async (cancelled = false) => {
+    setIsRecordingUI(false);
+    slideAnim.setValue(0);
+    clearInterval(timerRef.current);
+
     if (!isRecordingRef.current) return;
     isRecordingRef.current = false;
     animateMic(false);
 
-    // Prevent MediaRecorder crash on Android by ensuring recording lasts at least 500ms
+    // Prevent MediaRecorder crash on Android
     const duration = Date.now() - recordingStartTimeRef.current;
     if (duration < 500) {
       await new Promise(resolve => setTimeout(resolve, 500 - duration));
     }
 
     try {
-      // In expo-audio, the uri is a property on the recorder itself
       await audioRecorder.stop();
       const uri = audioRecorder.uri;
+
+      if (cancelled) {
+        return; // do not send message
+      }
+
       if (!uri) return;
 
-      // Add placeholder so user sees feedback immediately
       const placeholderId = `temp_voice_${Date.now()}`;
       const placeholder = {
         _id: placeholderId,
@@ -217,14 +242,12 @@ export default function ChatRoom({ route, navigation }) {
           audioUri: uri,
         });
         const newMsg = formatMessage(saved);
-        // Replace placeholder with real message (transcribed text + GIF)
         setMessages((prev) => {
           const filtered = prev.filter((m) => m._id !== placeholderId);
           if (filtered.some((m) => m._id === newMsg._id)) return filtered;
           return GiftedChat.append(filtered, [newMsg]);
         });
       } catch (err) {
-        // Remove placeholder on failure
         setMessages((prev) => prev.filter((m) => m._id !== placeholderId));
         const errMsg = err?.message || 'Voice message failed. Please speak clearly and try again.';
         Alert.alert('Voice Message Failed', errMsg);
@@ -235,12 +258,42 @@ export default function ChatRoom({ route, navigation }) {
     } catch (err) {
       console.error('Failed to stop recording:', err);
       if (err.message && err.message.includes('stop failed')) {
-        console.warn('Ignored Android stop failed exception (recording too short).');
         return;
       }
       Alert.alert('Error', 'Failed to stop recording: ' + err.message);
     }
   };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: async () => {
+        isCancelledRef.current = false;
+        slideAnim.setValue(0);
+        setIsRecordingUI(true);
+        await startRecording();
+      },
+      onPanResponderMove: (e, gestureState) => {
+        if (gestureState.dx < 0) {
+          slideAnim.setValue(gestureState.dx);
+          if (gestureState.dx < -100 && !isCancelledRef.current) {
+            isCancelledRef.current = true;
+            stopRecording(true); 
+          }
+        }
+      },
+      onPanResponderRelease: () => {
+        if (!isCancelledRef.current) {
+          stopRecording(false);
+        }
+      },
+      onPanResponderTerminate: () => {
+        if (!isCancelledRef.current) {
+          stopRecording(true);
+        }
+      }
+    })
+  ).current;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -284,8 +337,8 @@ export default function ChatRoom({ route, navigation }) {
             messagesContainerStyle={{ backgroundColor: 'transparent' }}
 
             renderBubble={(props) => {
-              // If this message has a GIF animation, use the custom animated bubble
-              if (props.currentMessage.image) {
+              // If this message has a GIF animation and user is not a normal person, use the custom animated bubble
+              if (props.currentMessage.image && user?.userType !== 'normal') {
                 const isRight = props.currentMessage.user._id === (user?._id || 'temp');
                 return (
                   <AnimatedMessageBubble
@@ -313,42 +366,73 @@ export default function ChatRoom({ route, navigation }) {
             /* renderMessageImage is suppressed — GIF rendering handled inside renderBubble */
             renderMessageImage={() => null}
 
-            renderActions={() => (
-              <View style={styles.actionContainer}>
-                <TouchableOpacity
-                  style={styles.micSmallBtn}
-                  onLongPress={startRecording}
-                  onPressOut={stopRecording}
-                >
-                  <Text style={styles.micIcon}>
-                    {audioRecorder.isRecording ? '⏹️' : '🎤'}
-                  </Text>
-                </TouchableOpacity>
+            /* renderActions is now removed, mic is in renderSend */
+            renderActions={() => null}
+
+            renderInputToolbar={(props) => (
+              <View>
+                <InputToolbar
+                  {...props}
+                  containerStyle={[
+                    styles.inputToolbar,
+                    { paddingBottom: insets.bottom },
+                  ]}
+                />
+                {isRecordingUI && (
+                  <View style={[styles.recordingOverlay, { bottom: insets.bottom }]}>
+                    <Animated.Text style={[styles.recordingTime, { opacity: micScale }]}>
+                      🔴 0:{recordDuration.toString().padStart(2, '0')}
+                    </Animated.Text>
+                    <Text style={styles.slideCancelText}>
+                      {'< Slide to cancel'}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
-            // ── FIX 3: paddingBottom = insets.bottom pushes toolbar above nav bar ──
-            renderInputToolbar={(props) => (
-              <InputToolbar
-                {...props}
-                containerStyle={[
-                  styles.inputToolbar,
-                  { paddingBottom: insets.bottom },
-                ]}
+            renderComposer={(props) => (
+              <Composer 
+                {...props} 
+                textInputStyle={{
+                  color: '#ffffff',
+                  fontSize: 16,
+                  opacity: isRecordingUI ? 0 : 1
+                }} 
+                textInputProps={{ 
+                  placeholderTextColor: '#ffffff',
+                  style: { 
+                    color: '#ffffff', 
+                    fontSize: 16, 
+                    opacity: isRecordingUI ? 0 : 1 
+                  },
+                  ...props.textInputProps
+                }} 
               />
             )}
 
-            renderComposer={(props) => (
-              <Composer {...props} textInputStyle={styles.composerInput} />
-            )}
-
-            renderSend={(props) => (
-              <Send {...props} containerStyle={styles.sendContainer}>
-                <View style={styles.sendBtn}>
-                  <Text style={styles.sendLabel}>Send</Text>
-                </View>
-              </Send>
-            )}
+            renderSend={(props) => {
+              if (props.text && props.text.trim().length > 0) {
+                return (
+                  <Send {...props} containerStyle={styles.sendContainer}>
+                    <View style={styles.sendBtn}>
+                      <Text style={styles.sendLabel}>Send</Text>
+                    </View>
+                  </Send>
+                );
+              }
+              // WhatsApp style: show mic when empty
+              return (
+                <Animated.View
+                  {...panResponder.panHandlers}
+                  style={[styles.whatsappMicBtnContainer, { transform: [{ translateX: slideAnim }] }]}
+                >
+                  <Animated.View style={[styles.whatsappMicBtn, isRecordingUI && { transform: [{ scale: micScale }] }]}>
+                    <Text style={styles.whatsappMicIcon}>🎤</Text>
+                  </Animated.View>
+                </Animated.View>
+              );
+            }}
           />
         )}
       </KeyboardAvoidingView>
@@ -454,9 +538,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendingText: {
-    color: COLORS.cyan,
+    color: '#ffffff',
     fontSize: moderateScale(14),
     fontWeight: '600',
     marginLeft: moderateScale(12),
+  },
+  composerContainer: { flex: 1, justifyContent: 'center' },
+  whatsappMicBtnContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: moderateScale(44),
+    width: moderateScale(44),
+    marginRight: moderateScale(8),
+    marginBottom: moderateScale(3),
+  },
+  whatsappMicBtn: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: COLORS.cyan,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.cyan,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  whatsappMicIcon: { fontSize: moderateScale(18), color: '#000' },
+  recordingOverlay: {
+    position: 'absolute',
+    left: moderateScale(10),
+    right: moderateScale(60),
+    top: moderateScale(6),
+    height: moderateScale(44),
+    backgroundColor: COLORS.inputBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: moderateScale(10),
+    zIndex: 10,
+  },
+  recordingTime: {
+    color: '#ff4444',
+    fontSize: moderateScale(15),
+    fontWeight: 'bold',
+  },
+  slideCancelText: {
+    color: COLORS.textMuted,
+    fontSize: moderateScale(14),
+    marginRight: moderateScale(20),
   },
 });

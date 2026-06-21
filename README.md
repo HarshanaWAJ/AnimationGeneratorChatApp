@@ -1,6 +1,6 @@
-# Antigravity Stick Figure Animator
+# Stick Figure Animator
 
-A full-stack AI-powered animation system. Type any action text → get an 8-second 24fps GIF of a stick figure performing it in zero-gravity.
+A full-stack AI-powered animation system. Type any action text → get an 8-second 24fps GIF of a stick figure performing.
 
 ## Quick Start
 
@@ -47,6 +47,18 @@ LLM2/
 │   └── vite.config.js
 └── test_pipeline.py           ← Smoke test (no server needed)
 ```
+
+## Finetuning the Model
+
+If you modify the training data (e.g. `backend/data/dataset.jsonl` or `LLM/data/dataset.jsonl`) to add new mappings or long sentence support, you need to retrain the SentenceTransformer embedding model so the backend correctly parses those phrases.
+
+1. Navigate to your project directory.
+2. Run the `train.py` script using your Python virtual environment:
+   ```powershell
+   .\venv\Scripts\python.exe train.py
+   ```
+3. The script will load the augmented JSONL datasets, regenerate any missing fallback MP4s using `animation_generator.py`, and export the new `finetuned_model/` directory alongside the updated `embeddings.npz` array.
+4. Restart your FastAPI backend server to load the updated weights.
 
 ## Smoke Test (no server needed)
 ```powershell

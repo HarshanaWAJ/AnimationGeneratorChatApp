@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { register } from '../services/auth';
@@ -99,6 +100,11 @@ export default function RegisterScreen({ navigation }) {
                 ]}
                 onPress={() => setUserType('normal')}
               >
+                <Image
+                  source={require('../../assets/NormalPerson.jpg')}
+                  style={styles.typeIcon}
+                  resizeMode="contain"
+                />
                 <Text
                   style={[
                     styles.userTypeCardText,
@@ -116,6 +122,11 @@ export default function RegisterScreen({ navigation }) {
                 ]}
                 onPress={() => setUserType('disabled')}
               >
+                <Image
+                  source={require('../../assets/DisablePerson.png')}
+                  style={styles.typeIcon}
+                  resizeMode="contain"
+                />
                 <Text
                   style={[
                     styles.userTypeCardText,
@@ -231,6 +242,12 @@ const styles = StyleSheet.create({
   },
   userTypeCardTextActive: {
     color: '#00e0ff',
+  },
+  typeIcon: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    marginBottom: moderateScale(8),
+    borderRadius: moderateScale(8),
   },
   button: {
     backgroundColor: '#00e0ff',
