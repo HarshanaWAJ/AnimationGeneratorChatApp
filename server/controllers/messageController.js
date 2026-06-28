@@ -102,7 +102,10 @@ exports.sendMessage = async (req, res) => {
     let action_text = final_text;
 
     // Greeting / Morning -> wave
-    if (lowerText.includes('good morning') || lowerText.includes('morning') || lowerText.includes('hello') || lowerText.includes('hi ') || lowerText.match(/^hi$/)) {
+    if (lowerText.includes('good morning') || lowerText.includes('morning')) {
+      action_text = 'stretches and smiles';
+    } 
+    else if (lowerText.includes('hello') || lowerText.includes('hi ') || lowerText.match(/^hi$/)) {
       action_text = 'wave';
     } 
     // Sleep / Night -> sleep

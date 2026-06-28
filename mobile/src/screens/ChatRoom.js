@@ -151,7 +151,7 @@ export default function ChatRoom({ route, navigation }) {
       _id: placeholderId,
       text: msg.text,
       createdAt: new Date(),
-      user: { _id: user?._id || 'temp' },
+      user: { _id: (user?.id || user?._id) || 'temp' },
       pending: true,
     };
     setMessages((prev) => GiftedChat.append(prev, [placeholder]));
@@ -229,7 +229,7 @@ export default function ChatRoom({ route, navigation }) {
         _id: placeholderId,
         text: '🎤 Transcribing & animating...',
         createdAt: new Date(),
-        user: { _id: user?._id || 'temp' },
+        user: { _id: (user?.id || user?._id) || 'temp' },
         pending: true,
       };
       setMessages((prev) => GiftedChat.append(prev, [placeholder]));
@@ -323,7 +323,7 @@ export default function ChatRoom({ route, navigation }) {
           <GiftedChat
             messages={messages}
             onSend={(msgs) => onSend(msgs)}
-            user={{ _id: user?._id || 'temp' }}
+            user={{ _id: (user?.id || user?._id) || 'temp' }}
             inverted={!IS_WEB}
             isKeyboardInternallyHandled={false}
             disableComposer={isSending}
@@ -339,7 +339,7 @@ export default function ChatRoom({ route, navigation }) {
             renderBubble={(props) => {
               // If this message has a GIF animation and user is not a normal person, use the custom animated bubble
               if (props.currentMessage.image && user?.userType !== 'normal') {
-                const isRight = props.currentMessage.user._id === (user?._id || 'temp');
+                const isRight = props.position === 'right' || props.currentMessage.user._id === ((user?.id || user?._id) || 'temp');
                 return (
                   <AnimatedMessageBubble
                     currentMessage={props.currentMessage}
