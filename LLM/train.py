@@ -106,7 +106,21 @@ def main():
 
     print("Saving embeddings...")
     os.makedirs(MODEL_DIR, exist_ok=True)
-    embedder.save(os.path.join(MODEL_DIR, "finetuned_model"))
+    
+    try:
+        embedder.save(os.path.join(MODEL_DIR, "finetuned_model"))
+    except Exception as e:
+        if "user-mapped section open" in str(e) or "1224" in str(e) or isinstance(e, PermissionError):
+            print("\n" + "="*80)
+            print("ERROR: Failed to save the model because the files are locked by another process.")
+            print("This usually happens when the chat app (app.py) is currently running in the background.")
+            print("Please STOP the FastAPI server, then run this training script again.")
+            print("="*80 + "\n")
+            import sys
+            sys.exit(1)
+        else:
+            raise
+            
     np.savez(os.path.join(MODEL_DIR, "embeddings.npz"), X=text_embeddings, labels=np.array(valid_target_labels))
 
     print("Evaluating nearest neighbor on dataset inputs...")
