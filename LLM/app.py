@@ -5,11 +5,37 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import os
+import torch
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from animation_generator import create_animation
 import warnings
 warnings.filterwarnings('ignore')
+
+
+def _release_model_file_locks(model: SentenceTransformer) -> SentenceTransformer:
+    """Clone all tensors into RAM so OS file locks on the model's weight files
+    are released immediately after loading.
+
+    On Windows, PyTorch memory-maps safetensors/bin weight files and keeps a
+    file handle open for the lifetime of the original tensor storage.  While
+    those handles are open, train.py cannot overwrite the files.  Cloning
+    every parameter and buffer forces PyTorch to allocate fresh RAM-backed
+    storage, dropping the mmap references and releasing the file locks.
+    """
+    with torch.no_grad():
+        for module in model.modules():
+            # Clone parameters
+            for name, param in list(module._parameters.items()):
+                if param is not None:
+                    module._parameters[name] = torch.nn.Parameter(
+                        param.data.clone(), requires_grad=param.requires_grad
+                    )
+            # Clone buffers
+            for name, buf in list(module._buffers.items()):
+                if buf is not None:
+                    module._buffers[name] = buf.clone()
+    return model
 
 app = FastAPI(title="Animation Matcher API")
 
@@ -29,9 +55,13 @@ try:
         embedder = SentenceTransformer(model_path)
     else:
         embedder = SentenceTransformer('all-MiniLM-L6-v2')
-    data = np.load(os.path.join(MODEL_DIR, "embeddings.npz"))
-    train_embeddings = data['X']
-    train_labels = data['labels']
+    # Release OS file locks on the weight files so train.py can overwrite them
+    # while this server is running (Windows mmap issue).
+    embedder = _release_model_file_locks(embedder)
+    print("Model file locks released — weight files are now writable.")
+    data = np.load(os.path.join(MODEL_DIR, "embeddings.npz"), allow_pickle=False)
+    train_embeddings = data['X'].copy()   # copy out of mmap so .npz is also writable
+    train_labels = data['labels'].copy()
 except Exception as e:
     print(f"Error loading models: {e}")
     print("Please make sure you have run train.py first.")

@@ -14,7 +14,7 @@ from animation_generator import create_animation, sanitize_hint
 
 DATASET_PATH = "data/dataset.jsonl"  # input dataset file
 ANIMATIONS_DIR = "data/animations"   # directory of animation files
-MODEL_DIR = "model"  # output directory for models/embeddings
+MODEL_DIR = "model_updated"  # output directory for models/embeddings
 
 
 def load_data():

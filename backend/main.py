@@ -49,7 +49,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load SentenceTransformer Model
-MODEL_DIR = Path(__file__).parent / "model"
+MODEL_DIR = Path(__file__).parent / "model_v4"
 DATA_DIR = Path(__file__).parent / "data" / "animations"
 
 logger.info("Loading SentenceTransformer models...")
