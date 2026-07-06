@@ -112,6 +112,13 @@ exports.sendMessage = async (req, res) => {
     else if (lowerText.includes('good night') || lowerText.includes('sleep') || lowerText.includes('tired')) {
       action_text = 'sleep';
     }
+    // Happy Birthday
+    else if (lowerText.includes('happy birthday')) {
+      action_text = 'happy birthday';
+    }
+    else if (lowerText.includes('happy yesterday')) {
+      action_text = 'happy yesterday';
+    }
     // Happy / Excited -> celebrate or happy
     else if (lowerText.includes('great') || lowerText.includes('awesome') || lowerText.includes('happy')) {
       action_text = 'happy';
