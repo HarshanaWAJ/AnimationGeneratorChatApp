@@ -145,6 +145,35 @@ async def animate(req: AnimateRequest):
     user_text = req.action.strip()
     logger.info(f"[animate] Input: {user_text!r}")
 
+    # --- 0. Direct Label Passthrough ---
+    # If the input text exactly matches an existing MP4 label (e.g. "book open", "badminton"),
+    # serve it directly without going through the LLM embedder.
+    # This ensures JS-side pre-mapped labels always hit the correct animation file.
+    _direct_mp4 = DATA_DIR / f"{user_text}.mp4"
+    if _direct_mp4.exists():
+        logger.info(f"[animate] Direct label match: '{user_text}' → {_direct_mp4.name}")
+        t_direct = time.time()
+        cap = cv2.VideoCapture(str(_direct_mp4))
+        frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        cap.release()
+        if frames:
+            gif_bytes = frames_to_gif(frames, output_size=(req.output_width, req.output_height))
+            logger.info(f"[animate] Direct MP4→GIF: {time.time() - t_direct:.2f}s — size: {len(gif_bytes)/1024:.1f} KB")
+            return Response(
+                content=gif_bytes,
+                media_type="image/gif",
+                headers={
+                    "X-Action": user_text,
+                    "X-Confidence": "1.0",
+                    "X-Source": "direct-label",
+                },
+            )
+
     # --- 1. LLM Matcher Logic ---
     if embedder is not None and train_embeddings is not None:
         try:

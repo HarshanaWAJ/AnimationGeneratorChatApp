@@ -101,8 +101,18 @@ exports.sendMessage = async (req, res) => {
     const lowerText = final_text.toLowerCase();
     let action_text = final_text;
 
+    // ── Exact sport / activity mappings (must be first — most specific) ────────
+    if (lowerText.includes('badminton') || lowerText.includes('play badminton')) {
+      // Maps to badminton.mp4
+      action_text = 'badminton';
+    }
+    // Study / Studying -> book open.mp4
+    else if (lowerText.includes('studi') || lowerText.includes('studying') || lowerText.includes('reading') || lowerText.includes('i am learning') || lowerText.includes('i am studing')) {
+      // Maps to 'book open.mp4'
+      action_text = 'book open';
+    }
     // Greeting / Morning -> wave
-    if (lowerText.includes('good morning') || lowerText.includes('morning')) {
+    else if (lowerText.includes('good morning') || lowerText.includes('morning')) {
       action_text = 'stretches and smiles';
     } 
     else if (lowerText.includes('hello') || lowerText.includes('hi ') || lowerText.match(/^hi$/)) {
@@ -136,7 +146,8 @@ exports.sendMessage = async (req, res) => {
     else if (lowerText.includes('angry') || lowerText.includes('mad') || lowerText.includes('furious')) {
       action_text = 'angry';
     }
-    else if (lowerText.includes('work') || lowerText.includes('job') || lowerText.includes('study')) {
+    // Generic work/job (NOT study — that is handled above)
+    else if (lowerText.includes('work') || lowerText.includes('job')) {
       action_text = 'desk_work';
     }
     else if (lowerText.includes('dance') || lowerText.includes('party') || lowerText.includes('music')) {

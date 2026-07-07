@@ -112,13 +112,16 @@ export default function ChatRoom({ route, navigation }) {
     });
     setSocket(newSocket);
     newSocket.on('connect', () => newSocket.emit('join_room', recipientId));
-    newSocket.on('receive_message', (data) =>
+    newSocket.on('receive_message', async (data) => {
+      // Append the incoming message immediately for fast feedback
       setMessages((prev) => {
         const newMsg = formatMessage(data);
         if (prev.some((m) => m._id === newMsg._id)) return prev;
         return GiftedChat.append(prev, newMsg);
-      })
-    );
+      });
+      // Then refresh from server to get the latest GIF/state
+      await loadMessages();
+    });
     return () => { newSocket.removeAllListeners(); newSocket.disconnect(); };
   }, [recipientId]);
 
@@ -165,6 +168,8 @@ export default function ChatRoom({ route, navigation }) {
         if (filtered.some((m) => m._id === newMsg._id)) return filtered;
         return GiftedChat.append(filtered, [newMsg]);
       });
+      // Auto-refresh from server to get accurate state
+      await loadMessages();
     } catch (err) {
       console.error('sendMessage failed:', err);
       // Remove placeholder on error
@@ -247,6 +252,8 @@ export default function ChatRoom({ route, navigation }) {
           if (filtered.some((m) => m._id === newMsg._id)) return filtered;
           return GiftedChat.append(filtered, [newMsg]);
         });
+        // Auto-refresh from server after voice message GIF is ready
+        await loadMessages();
       } catch (err) {
         setMessages((prev) => prev.filter((m) => m._id !== placeholderId));
         const errMsg = err?.message || 'Voice message failed. Please speak clearly and try again.';
