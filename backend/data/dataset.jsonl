@@ -112,7 +112,6 @@
 {"input_text": "I am going to office", "animation_hint": "going office"}
 {"input_text": "I am fighting", "animation_hint": "fighting"}
 {"input_text": "I came home", "animation_hint": "came home"}
-{"input_text": "I am studying", "animation_hint": "book open"}
 {"input_text": "I am writing", "animation_hint": "writing"}
 {"input_text": "I am reading", "animation_hint": "reading"}
 {"input_text": "I am exercising", "animation_hint": "exercising"}
@@ -2028,10 +2027,10 @@
 {"input_text": "happy birthday to you", "animation_hint": "happy birthday"}
 {"input_text": "I am going to school tomorrow", "animation_hint": "school tomorrow"}
 {"input_text": "I am going to the office tomorrow", "animation_hint": "office tomorrow"}
-{"input_text": "I am going to the work tomorrow", "animation_hint": "office tommorow"}
+{"input_text": "I am going to the work tomorrow", "animation_hint": "office tomorrow"}
 {"input_text": "I will go to school tomorrow", "animation_hint": "school tomorrow"}
 {"input_text": "I will go to the office tomorrow", "animation_hint": "office tomorrow"}
-{"input_text": "I will go to work tomorrow", "animation_hint": "office tommorow"}
+{"input_text": "I will go to work tomorrow", "animation_hint": "office tomorrow"}
 {"input_text": "We will play cricket tomorrow", "animation_hint": "play tomorrow"}
 {"input_text": "We will play tomorrow", "animation_hint": "play tomorrow"}
 {"input_text": "I will play cricket tomorrow", "animation_hint": "play tomorrow"}
@@ -2069,3 +2068,6 @@
 {"input_text": "Happy Birthday", "animation_hint": "happy birthday"}
 {"input_text": "Happy birthday", "animation_hint": "happy birthday"}
 {"input_text": "HAPPY BIRTHDAY", "animation_hint": "happy birthday"}
+{"input_text": "I am studying", "animation_hint": "book open"}
+{"input_text": "I will go office", "animation_hint": "office tomorrow"}
+{"input_text": "I play badminton", "animation_hint": "badminton"}

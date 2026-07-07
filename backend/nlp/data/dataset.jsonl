@@ -114,7 +114,6 @@
 {"input_text": "I am going to office", "animation_hint": "going office"}
 {"input_text": "I am fighting", "animation_hint": "fighting"}
 {"input_text": "I came home", "animation_hint": "came home"}
-{"input_text": "I am studying", "animation_hint": "book open"}
 {"input_text": "I am writing", "animation_hint": "writing"}
 {"input_text": "I am reading", "animation_hint": "reading"}
 {"input_text": "I am exercising", "animation_hint": "exercising"}
@@ -2001,3 +2000,6 @@
 {"input_text": "I'm not sure but happy birthday so please listen.", "animation_hint": "happy birthday"}
 {"input_text": "I'm not sure but happy birthday in the morning.", "animation_hint": "happy birthday"}
 {"input_text": "I'm not sure but happy birthday tonight.", "animation_hint": "happy birthday"}
+{"input_text": "I am studying", "animation_hint": "book open"}
+{"input_text": "I will go office", "animation_hint": "office tomorrow"}
+{"input_text": "I play badminton", "animation_hint": "badminton"}

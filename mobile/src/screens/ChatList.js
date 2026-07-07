@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -25,7 +26,7 @@ export default function ChatList({ navigation }) {
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
 
   useEffect(() => {
     loadFriends();
@@ -151,7 +152,10 @@ export default function ChatList({ navigation }) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Messages</Text>
+          <View>
+            <Text style={styles.title}>Messages</Text>
+            {user?.username && <Text style={styles.userNameHeader}>Logged in as: {user.username}</Text>}
+          </View>
           <View style={styles.headerBtns}>
             <TouchableOpacity
               style={styles.iconBtn}
@@ -165,7 +169,7 @@ export default function ChatList({ navigation }) {
               onPress={handleLogout}
               activeOpacity={0.6}
             >
-              <Text style={styles.iconText}>🚪</Text>
+              <Ionicons name="log-out-outline" size={22} color="#00e0ff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -241,6 +245,12 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(28),
     fontWeight: '800',
     letterSpacing: -0.5,
+  },
+  userNameHeader: {
+    color: '#8b9cc8',
+    fontSize: moderateScale(13),
+    marginTop: moderateScale(2),
+    fontWeight: '500',
   },
   headerBtns: {
     flexDirection: 'row',

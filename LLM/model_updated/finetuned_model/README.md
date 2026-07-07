@@ -1,351 +1,175 @@
 ---
+base_model:
+  - nreimers/MiniLM-L6-H384-uncased
+language: en
+license: apache-2.0
+library_name: sentence-transformers
 tags:
 - sentence-transformers
-- sentence-similarity
 - feature-extraction
-- dense
-- generated_from_trainer
-- dataset_size:2071
-- loss:MultipleNegativesRankingLoss
-base_model: sentence-transformers/all-MiniLM-L6-v2
-widget:
-- source_sentence: Can you believe that i am playing basketball because I really mean
-    it.
-  sentences:
-  - call the doctor
-  - basketball
-  - going office
-- source_sentence: If I am being completely honest, i feel sick, if that makes sense.
-  sentences:
-  - happy birthday
-  - sick
-  - father
-- source_sentence: It's five o'clock
-  sentences:
-  - checking time
-  - thirsty
-  - happy birthday
-- source_sentence: I just wanted to say that i am playing a violin so please listen.
-  sentences:
-  - happy birthday
-  - handshake
-  - violin
-- source_sentence: I am playing cricket, okay?
-  sentences:
-  - cricket
-  - funny
-  - waves hand
+- sentence-similarity
+- transformers
+datasets:
+- s2orc
+- flax-sentence-embeddings/stackexchange_xml
+- ms_marco
+- gooaq
+- yahoo_answers_topics
+- code_search_net
+- search_qa
+- eli5
+- snli
+- multi_nli
+- wikihow
+- natural_questions
+- trivia_qa
+- embedding-data/sentence-compression
+- embedding-data/flickr30k-captions
+- embedding-data/altlex
+- embedding-data/simple-wiki
+- embedding-data/QQP
+- embedding-data/SPECTER
+- embedding-data/PAQ_pairs
+- embedding-data/WikiAnswers
 pipeline_tag: sentence-similarity
-library_name: sentence-transformers
 ---
 
-# SentenceTransformer based on sentence-transformers/all-MiniLM-L6-v2
 
-This is a [sentence-transformers](https://www.SBERT.net) model finetuned from [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2). It maps sentences & paragraphs to a 384-dimensional dense vector space and can be used for semantic textual similarity, semantic search, paraphrase mining, text classification, clustering, and more.
+# all-MiniLM-L6-v2
+This is a [sentence-transformers](https://www.SBERT.net) model: It maps sentences & paragraphs to a 384 dimensional dense vector space and can be used for tasks like clustering or semantic search.
 
-## Model Details
-
-### Model Description
-- **Model Type:** Sentence Transformer
-- **Base model:** [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) <!-- at revision 1110a243fdf4706b3f48f1d95db1a4f5529b4d41 -->
-- **Maximum Sequence Length:** 256 tokens
-- **Output Dimensionality:** 384 dimensions
-- **Similarity Function:** Cosine Similarity
-<!-- - **Training Dataset:** Unknown -->
-<!-- - **Language:** Unknown -->
-<!-- - **License:** Unknown -->
-
-### Model Sources
-
-- **Documentation:** [Sentence Transformers Documentation](https://sbert.net)
-- **Repository:** [Sentence Transformers on GitHub](https://github.com/huggingface/sentence-transformers)
-- **Hugging Face:** [Sentence Transformers on Hugging Face](https://huggingface.co/models?library=sentence-transformers)
-
-### Full Model Architecture
+## Usage (Sentence-Transformers)
+Using this model becomes easy when you have [sentence-transformers](https://www.SBERT.net) installed:
 
 ```
-SentenceTransformer(
-  (0): Transformer({'max_seq_length': 256, 'do_lower_case': False, 'architecture': 'BertModel'})
-  (1): Pooling({'word_embedding_dimension': 384, 'pooling_mode_cls_token': False, 'pooling_mode_mean_tokens': True, 'pooling_mode_max_tokens': False, 'pooling_mode_mean_sqrt_len_tokens': False, 'pooling_mode_weightedmean_tokens': False, 'pooling_mode_lasttoken': False, 'include_prompt': True})
-  (2): Normalize()
-)
-```
-
-## Usage
-
-### Direct Usage (Sentence Transformers)
-
-First install the Sentence Transformers library:
-
-```bash
 pip install -U sentence-transformers
 ```
 
-Then you can load this model and run inference.
+Then you can use the model like this:
 ```python
 from sentence_transformers import SentenceTransformer
+sentences = ["This is an example sentence", "Each sentence is converted"]
 
-# Download from the 🤗 Hub
-model = SentenceTransformer("sentence_transformers_model_id")
-# Run inference
-sentences = [
-    'I am playing cricket, okay?',
-    'cricket',
-    'funny',
-]
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 embeddings = model.encode(sentences)
-print(embeddings.shape)
-# [3, 384]
-
-# Get the similarity scores for the embeddings
-similarities = model.similarity(embeddings, embeddings)
-print(similarities)
-# tensor([[1.0000, 0.8683, 0.0752],
-#         [0.8683, 1.0000, 0.0960],
-#         [0.0752, 0.0960, 1.0000]])
+print(embeddings)
 ```
 
-<!--
-### Direct Usage (Transformers)
+## Usage (HuggingFace Transformers)
+Without [sentence-transformers](https://www.SBERT.net), you can use the model like this: First, you pass your input through the transformer model, then you have to apply the right pooling-operation on-top of the contextualized word embeddings.
 
-<details><summary>Click to see the direct usage in Transformers</summary>
+```python
+from transformers import AutoTokenizer, AutoModel
+import torch
+import torch.nn.functional as F
 
-</details>
--->
-
-<!--
-### Downstream Usage (Sentence Transformers)
-
-You can finetune this model on your own dataset.
-
-<details><summary>Click to expand</summary>
-
-</details>
--->
-
-<!--
-### Out-of-Scope Use
-
-*List how the model may foreseeably be misused and address what users ought not to do with the model.*
--->
-
-<!--
-## Bias, Risks and Limitations
-
-*What are the known or foreseeable issues stemming from this model? You could also flag here known failure cases or weaknesses of the model.*
--->
-
-<!--
-### Recommendations
-
-*What are recommendations with respect to the foreseeable issues? For example, filtering explicit content.*
--->
-
-## Training Details
-
-### Training Dataset
-
-#### Unnamed Dataset
-
-* Size: 2,071 training samples
-* Columns: <code>sentence_0</code> and <code>sentence_1</code>
-* Approximate statistics based on the first 1000 samples:
-  |         | sentence_0                                                                        | sentence_1                                                                      |
-  |:--------|:----------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
-  | type    | string                                                                            | string                                                                          |
-  | details | <ul><li>min: 3 tokens</li><li>mean: 10.75 tokens</li><li>max: 19 tokens</li></ul> | <ul><li>min: 3 tokens</li><li>mean: 3.73 tokens</li><li>max: 6 tokens</li></ul> |
-* Samples:
-  | sentence_0                                                       | sentence_1              |
-  |:-----------------------------------------------------------------|:------------------------|
-  | <code>Can you believe that wave hands for the time being.</code> | <code>waves hand</code> |
-  | <code>I am painting, if that makes sense.</code>                 | <code>painting</code>   |
-  | <code>I am swimming</code>                                       | <code>swim</code>       |
-* Loss: [<code>MultipleNegativesRankingLoss</code>](https://sbert.net/docs/package_reference/sentence_transformer/losses.html#multiplenegativesrankingloss) with these parameters:
-  ```json
-  {
-      "scale": 20.0,
-      "similarity_fct": "cos_sim",
-      "gather_across_devices": false,
-      "directions": [
-          "query_to_doc"
-      ],
-      "partition_mode": "joint",
-      "hardness_mode": null,
-      "hardness_strength": 0.0
-  }
-  ```
-
-### Training Hyperparameters
-#### Non-Default Hyperparameters
-
-- `per_device_train_batch_size`: 16
-- `num_train_epochs`: 10
-- `per_device_eval_batch_size`: 16
-- `multi_dataset_batch_sampler`: round_robin
-
-#### All Hyperparameters
-<details><summary>Click to expand</summary>
-
-- `per_device_train_batch_size`: 16
-- `num_train_epochs`: 10
-- `max_steps`: -1
-- `learning_rate`: 5e-05
-- `lr_scheduler_type`: linear
-- `lr_scheduler_kwargs`: None
-- `warmup_steps`: 0
-- `optim`: adamw_torch_fused
-- `optim_args`: None
-- `weight_decay`: 0.0
-- `adam_beta1`: 0.9
-- `adam_beta2`: 0.999
-- `adam_epsilon`: 1e-08
-- `optim_target_modules`: None
-- `gradient_accumulation_steps`: 1
-- `average_tokens_across_devices`: True
-- `max_grad_norm`: 1
-- `label_smoothing_factor`: 0.0
-- `bf16`: False
-- `fp16`: False
-- `bf16_full_eval`: False
-- `fp16_full_eval`: False
-- `tf32`: None
-- `gradient_checkpointing`: False
-- `gradient_checkpointing_kwargs`: None
-- `torch_compile`: False
-- `torch_compile_backend`: None
-- `torch_compile_mode`: None
-- `use_liger_kernel`: False
-- `liger_kernel_config`: None
-- `use_cache`: False
-- `neftune_noise_alpha`: None
-- `torch_empty_cache_steps`: None
-- `auto_find_batch_size`: False
-- `log_on_each_node`: True
-- `logging_nan_inf_filter`: True
-- `include_num_input_tokens_seen`: no
-- `log_level`: passive
-- `log_level_replica`: warning
-- `disable_tqdm`: False
-- `project`: huggingface
-- `trackio_space_id`: trackio
-- `eval_strategy`: no
-- `per_device_eval_batch_size`: 16
-- `prediction_loss_only`: True
-- `eval_on_start`: False
-- `eval_do_concat_batches`: True
-- `eval_use_gather_object`: False
-- `eval_accumulation_steps`: None
-- `include_for_metrics`: []
-- `batch_eval_metrics`: False
-- `save_only_model`: False
-- `save_on_each_node`: False
-- `enable_jit_checkpoint`: False
-- `push_to_hub`: False
-- `hub_private_repo`: None
-- `hub_model_id`: None
-- `hub_strategy`: every_save
-- `hub_always_push`: False
-- `hub_revision`: None
-- `load_best_model_at_end`: False
-- `ignore_data_skip`: False
-- `restore_callback_states_from_checkpoint`: False
-- `full_determinism`: False
-- `seed`: 42
-- `data_seed`: None
-- `use_cpu`: False
-- `accelerator_config`: {'split_batches': False, 'dispatch_batches': None, 'even_batches': True, 'use_seedable_sampler': True, 'non_blocking': False, 'gradient_accumulation_kwargs': None}
-- `parallelism_config`: None
-- `dataloader_drop_last`: False
-- `dataloader_num_workers`: 0
-- `dataloader_pin_memory`: True
-- `dataloader_persistent_workers`: False
-- `dataloader_prefetch_factor`: None
-- `remove_unused_columns`: True
-- `label_names`: None
-- `train_sampling_strategy`: random
-- `length_column_name`: length
-- `ddp_find_unused_parameters`: None
-- `ddp_bucket_cap_mb`: None
-- `ddp_broadcast_buffers`: False
-- `ddp_backend`: None
-- `ddp_timeout`: 1800
-- `fsdp`: []
-- `fsdp_config`: {'min_num_params': 0, 'xla': False, 'xla_fsdp_v2': False, 'xla_fsdp_grad_ckpt': False}
-- `deepspeed`: None
-- `debug`: []
-- `skip_memory_metrics`: True
-- `do_predict`: False
-- `resume_from_checkpoint`: None
-- `warmup_ratio`: None
-- `local_rank`: -1
-- `prompts`: None
-- `batch_sampler`: batch_sampler
-- `multi_dataset_batch_sampler`: round_robin
-- `router_mapping`: {}
-- `learning_rate_mapping`: {}
-
-</details>
-
-### Training Logs
-| Epoch  | Step | Training Loss |
-|:------:|:----:|:-------------:|
-| 3.8462 | 500  | 0.4417        |
-| 7.6923 | 1000 | 0.3900        |
+#Mean Pooling - Take attention mask into account for correct averaging
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 
-### Framework Versions
-- Python: 3.11.0
-- Sentence Transformers: 5.3.0
-- Transformers: 5.5.0
-- PyTorch: 2.11.0+cpu
-- Accelerate: 1.13.0
-- Datasets: 4.8.5
-- Tokenizers: 0.22.2
+# Sentences we want sentence embeddings for
+sentences = ['This is an example sentence', 'Each sentence is converted']
 
-## Citation
+# Load model from HuggingFace Hub
+tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
 
-### BibTeX
+# Tokenize sentences
+encoded_input = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
 
-#### Sentence Transformers
-```bibtex
-@inproceedings{reimers-2019-sentence-bert,
-    title = "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks",
-    author = "Reimers, Nils and Gurevych, Iryna",
-    booktitle = "Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing",
-    month = "11",
-    year = "2019",
-    publisher = "Association for Computational Linguistics",
-    url = "https://arxiv.org/abs/1908.10084",
-}
+# Compute token embeddings
+with torch.no_grad():
+    model_output = model(**encoded_input)
+
+# Perform pooling
+sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
+
+# Normalize embeddings
+sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
+
+print("Sentence embeddings:")
+print(sentence_embeddings)
 ```
 
-#### MultipleNegativesRankingLoss
-```bibtex
-@misc{oord2019representationlearningcontrastivepredictive,
-      title={Representation Learning with Contrastive Predictive Coding},
-      author={Aaron van den Oord and Yazhe Li and Oriol Vinyals},
-      year={2019},
-      eprint={1807.03748},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/1807.03748},
-}
-```
+------
 
-<!--
-## Glossary
+## Background
 
-*Clearly define terms in order to be accessible across audiences.*
--->
+The project aims to train sentence embedding models on very large sentence level datasets using a self-supervised 
+contrastive learning objective. We used the pretrained [`nreimers/MiniLM-L6-H384-uncased`](https://huggingface.co/nreimers/MiniLM-L6-H384-uncased) model and fine-tuned in on a 
+1B sentence pairs dataset. We use a contrastive learning objective: given a sentence from the pair, the model should predict which out of a set of randomly sampled other sentences, was actually paired with it in our dataset.
 
-<!--
-## Model Card Authors
+We developed this model during the 
+[Community week using JAX/Flax for NLP & CV](https://discuss.huggingface.co/t/open-to-the-community-community-week-using-jax-flax-for-nlp-cv/7104), 
+organized by Hugging Face. We developed this model as part of the project:
+[Train the Best Sentence Embedding Model Ever with 1B Training Pairs](https://discuss.huggingface.co/t/train-the-best-sentence-embedding-model-ever-with-1b-training-pairs/7354). We benefited from efficient hardware infrastructure to run the project: 7 TPUs v3-8, as well as intervention from Googles Flax, JAX, and Cloud team member about efficient deep learning frameworks.
 
-*Lists the people who create the model card, providing recognition and accountability for the detailed work that goes into its construction.*
--->
+## Intended uses
 
-<!--
-## Model Card Contact
+Our model is intended to be used as a sentence and short paragraph encoder. Given an input text, it outputs a vector which captures 
+the semantic information. The sentence vector may be used for information retrieval, clustering or sentence similarity tasks.
 
-*Provides a way for people who have updates to the Model Card, suggestions, or questions, to contact the Model Card authors.*
--->
+By default, input text longer than 256 word pieces is truncated.
+
+
+## Training procedure
+
+### Pre-training 
+
+We use the pretrained [`nreimers/MiniLM-L6-H384-uncased`](https://huggingface.co/nreimers/MiniLM-L6-H384-uncased) model. Please refer to the model card for more detailed information about the pre-training procedure.
+
+### Fine-tuning 
+
+We fine-tune the model using a contrastive objective. Formally, we compute the cosine similarity from each possible sentence pairs from the batch.
+We then apply the cross entropy loss by comparing with true pairs.
+
+#### Hyper parameters
+
+We trained our model on a TPU v3-8. We train the model during 100k steps using a batch size of 1024 (128 per TPU core).
+We use a learning rate warm up of 500. The sequence length was limited to 128 tokens. We used the AdamW optimizer with
+a 2e-5 learning rate. The full training script is accessible in this current repository: `train_script.py`.
+
+#### Training data
+
+We use the concatenation from multiple datasets to fine-tune our model. The total number of sentence pairs is above 1 billion sentences.
+We sampled each dataset given a weighted probability which configuration is detailed in the `data_config.json` file.
+
+
+| Dataset                                                  | Paper                                    | Number of training tuples  |
+|--------------------------------------------------------|:----------------------------------------:|:--------------------------:|
+| [Reddit comments (2015-2018)](https://github.com/PolyAI-LDN/conversational-datasets/tree/master/reddit) | [paper](https://arxiv.org/abs/1904.06472) | 726,484,430 |
+| [S2ORC](https://github.com/allenai/s2orc) Citation pairs (Abstracts) | [paper](https://aclanthology.org/2020.acl-main.447/) | 116,288,806 |
+| [WikiAnswers](https://github.com/afader/oqa#wikianswers-corpus) Duplicate question pairs | [paper](https://doi.org/10.1145/2623330.2623677) | 77,427,422 |
+| [PAQ](https://github.com/facebookresearch/PAQ) (Question, Answer) pairs | [paper](https://arxiv.org/abs/2102.07033) | 64,371,441 |
+| [S2ORC](https://github.com/allenai/s2orc) Citation pairs (Titles) | [paper](https://aclanthology.org/2020.acl-main.447/) | 52,603,982 |
+| [S2ORC](https://github.com/allenai/s2orc) (Title, Abstract) | [paper](https://aclanthology.org/2020.acl-main.447/) | 41,769,185 |
+| [Stack Exchange](https://huggingface.co/datasets/flax-sentence-embeddings/stackexchange_xml) (Title, Body) pairs  | - | 25,316,456 |
+| [Stack Exchange](https://huggingface.co/datasets/flax-sentence-embeddings/stackexchange_xml) (Title+Body, Answer) pairs  | - | 21,396,559 |
+| [Stack Exchange](https://huggingface.co/datasets/flax-sentence-embeddings/stackexchange_xml) (Title, Answer) pairs  | - | 21,396,559 |
+| [MS MARCO](https://microsoft.github.io/msmarco/) triplets | [paper](https://doi.org/10.1145/3404835.3462804) | 9,144,553 |
+| [GOOAQ: Open Question Answering with Diverse Answer Types](https://github.com/allenai/gooaq) | [paper](https://arxiv.org/pdf/2104.08727.pdf) | 3,012,496 |
+| [Yahoo Answers](https://www.kaggle.com/soumikrakshit/yahoo-answers-dataset) (Title, Answer) | [paper](https://proceedings.neurips.cc/paper/2015/hash/250cf8b51c773f3f8dc8b4be867a9a02-Abstract.html) | 1,198,260 |
+| [Code Search](https://huggingface.co/datasets/code_search_net) | - | 1,151,414 |
+| [COCO](https://cocodataset.org/#home) Image captions | [paper](https://link.springer.com/chapter/10.1007%2F978-3-319-10602-1_48) | 828,395|
+| [SPECTER](https://github.com/allenai/specter) citation triplets | [paper](https://doi.org/10.18653/v1/2020.acl-main.207) | 684,100 |
+| [Yahoo Answers](https://www.kaggle.com/soumikrakshit/yahoo-answers-dataset) (Question, Answer) | [paper](https://proceedings.neurips.cc/paper/2015/hash/250cf8b51c773f3f8dc8b4be867a9a02-Abstract.html) | 681,164 |
+| [Yahoo Answers](https://www.kaggle.com/soumikrakshit/yahoo-answers-dataset) (Title, Question) | [paper](https://proceedings.neurips.cc/paper/2015/hash/250cf8b51c773f3f8dc8b4be867a9a02-Abstract.html) | 659,896 |
+| [SearchQA](https://huggingface.co/datasets/search_qa) | [paper](https://arxiv.org/abs/1704.05179) | 582,261 |
+| [Eli5](https://huggingface.co/datasets/eli5) | [paper](https://doi.org/10.18653/v1/p19-1346) | 325,475 |
+| [Flickr 30k](https://shannon.cs.illinois.edu/DenotationGraph/) | [paper](https://transacl.org/ojs/index.php/tacl/article/view/229/33) | 317,695 |
+| [Stack Exchange](https://huggingface.co/datasets/flax-sentence-embeddings/stackexchange_xml) Duplicate questions (titles) | | 304,525 |
+| AllNLI ([SNLI](https://nlp.stanford.edu/projects/snli/) and [MultiNLI](https://cims.nyu.edu/~sbowman/multinli/) | [paper SNLI](https://doi.org/10.18653/v1/d15-1075), [paper MultiNLI](https://doi.org/10.18653/v1/n18-1101) | 277,230 | 
+| [Stack Exchange](https://huggingface.co/datasets/flax-sentence-embeddings/stackexchange_xml) Duplicate questions (bodies) | | 250,519 |
+| [Stack Exchange](https://huggingface.co/datasets/flax-sentence-embeddings/stackexchange_xml) Duplicate questions (titles+bodies) | | 250,460 |
+| [Sentence Compression](https://github.com/google-research-datasets/sentence-compression) | [paper](https://www.aclweb.org/anthology/D13-1155/) | 180,000 |
+| [Wikihow](https://github.com/pvl/wikihow_pairs_dataset) | [paper](https://arxiv.org/abs/1810.09305) | 128,542 |
+| [Altlex](https://github.com/chridey/altlex/) | [paper](https://aclanthology.org/P16-1135.pdf) | 112,696 |
+| [Quora Question Triplets](https://quoradata.quora.com/First-Quora-Dataset-Release-Question-Pairs) | - | 103,663 |
+| [Simple Wikipedia](https://cs.pomona.edu/~dkauchak/simplification/) | [paper](https://www.aclweb.org/anthology/P11-2117/) | 102,225 |
+| [Natural Questions (NQ)](https://ai.google.com/research/NaturalQuestions) | [paper](https://transacl.org/ojs/index.php/tacl/article/view/1455) | 100,231 |
+| [SQuAD2.0](https://rajpurkar.github.io/SQuAD-explorer/) | [paper](https://aclanthology.org/P18-2124.pdf) | 87,599 |
+| [TriviaQA](https://huggingface.co/datasets/trivia_qa) | - | 73,346 |
+| **Total** | | **1,170,060,424** |
